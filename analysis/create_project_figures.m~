@@ -31,7 +31,7 @@ for s = 1:length(all_good_patients)
     [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 end
 
-%% Figure 2C: comparison against distance
+%% Figure 2C: multi-linear model
 
 %% Figure 3A: Distinguish between epilepsy type (mesial temporal vs neocortical)
 % temporal vs extratemporal
@@ -42,8 +42,6 @@ end
 
 %% Figure 4A: localize in good outcome patients
 % make figure based upon prior calculations
-
-%% Supplement: choice of atlas / segmentation
 
 %% Figure 4B: localize in poor outcome patients
 for s = 1:length(poor_outcome_patients)
