@@ -1,0 +1,7 @@
+7Networks1 Visual 1
+7Networks2 Somatomotor 2
+7Networks3 Dorsal_Attention 3
+7Networks4 Ventral_Attention 4
+7Networks5 Limbic 5
+7Networks6 Frontoparietal 6
+7Networks7 Default 7
