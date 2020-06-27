@@ -5,9 +5,13 @@
 
 %% Set up workspace
 
-all_good_patients = {'HUP082','HUP086','HUP087','HUP088','HUP094','HUP105','HUP106','HUP111','HUP130','HUP139','HUP148','HUP150','HUP151','HUP157','HUP163','HUP164','HUP173','HUP177','HUP179','HUP180','HUP181','HUP185'};
+all_patients = {'HUP086','HUP088','HUP094','HUP105','HUP106','HUP111','HUP116','HUP133','HUP138','HUP163','HUP164','HUP173','HUP177'};
 
-all_poor_patients = {''};
+% Use AAL116WM to get white matter
+fileID = fopen('localization/AAL116_WM.txt');
+atlas_info = textscan(fileID,'%s %s %d');
+all_inds = [double(atlas_info{3})];
+all_locs = [atlas_info{2}];
 
 %% Figure 1A: visualize adjacency matrix (one panel in pipeline figure)
 
@@ -24,7 +28,11 @@ for s = 1:length(all_good_patients)
     cv_patients = all_good_patients;
     cv_patients(s) = [];
     
-    % create atlas
+    
+    % call neuroimaging atlas
+    [mni_coords, mni_labels, NN_flag] = nifti_values(mni_input_coords,'AAL116_WM.nii')
+    
+    % get connectivity atlas
     [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
     
     % test atlas
