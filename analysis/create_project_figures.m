@@ -5,7 +5,13 @@
 
 %% Set up workspace
 
-all_patients = {'HUP086','HUP088','HUP094','HUP105','HUP106','HUP111','HUP116','HUP133','HUP138','HUP163','HUP164','HUP173','HUP177'};
+all_patients = {'HUP060','HUP086','HUP088','HUP094','HUP105','HUP106', ...
+    'HUP111','HUP112','HUP116','HUP130','HUP133','HUP138', ...
+    'HUP140','HUP141','HUP150','HUP151','HUP157','HUP158', ...
+    'HUP163','HUP164','HUP170','HUP171','HUP172','HUP173','HUP177', ...
+    'HUP179','HUP180','HUP181','HUP185'};
+    % HUP117 has Inf value in coordinate 23
+    % HUP139 electrodes 31:34 are out of range
 
 % Use AAL116WM to get white matter
 fileID = fopen('localization/AAL116_WM.txt');
@@ -20,7 +26,7 @@ all_locs = [atlas_info{2}];
 %% Figure 2A: anatomical analysis
 
 % get all necessary data from all patients
-all_patients = [all_good_patients, all_poor_patients];
+% all_patients = [all_good_patients, all_poor_patients];
 
 % get number of patients
 num_patients = length(all_patients);
