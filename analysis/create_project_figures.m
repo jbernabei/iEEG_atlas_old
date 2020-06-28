@@ -71,7 +71,6 @@ for s = 1:length(all_good_patients)
     cv_patients = all_good_patients;
     cv_patients(s) = [];
     
-    
     % call neuroimaging atlas
     [mni_coords, mni_labels, NN_flag] = nifti_values(mni_input_coords,'AAL116_WM.nii')
     
