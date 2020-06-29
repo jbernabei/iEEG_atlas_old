@@ -43,12 +43,14 @@ f = @nifti_values;
 g = @(x) f(x,"localization/AAL116_WM.nii");
 [~,electrode_regions,~] = cellfun(g, all_roi, 'UniformOutput',false);
 
+fprintf("\nCalculating connections from                ")
+
 % double loop through patients and regions
 for i = 1:num_regions % first region
     for j = i:num_regions % second region
         
         % print progress to console
-        fprintf("\nCalculating connections from %d to %d...",region_list(i),region_list(j))
+        fprintf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b%d to %d...",region_list(i),region_list(j))
         
         % initialize list of connection strengths between region i and j
         reg_conn_strengths = zeros(1, num_patients);

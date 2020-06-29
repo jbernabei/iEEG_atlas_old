@@ -5,13 +5,17 @@
 
 %% Set up workspace
 
-all_patients = {'HUP060','HUP086','HUP088','HUP094','HUP105','HUP106', ...
-    'HUP111','HUP112','HUP116','HUP130','HUP133','HUP138', ...
-    'HUP140','HUP141','HUP150','HUP151','HUP157','HUP158', ...
-    'HUP163','HUP164','HUP170','HUP171','HUP172','HUP173','HUP177', ...
-    'HUP179','HUP180','HUP181','HUP185'};
-    % HUP117 has Inf value in coordinate 23
-    % HUP139 electrodes 31:34 are out of range
+% suppress warning
+warning('OFF', 'MATLAB:table:ModifiedAndSavedVarnames')
+
+% load in data from excel spreadsheet
+metadata = readtable("data/atlas_project_metadata.xlsx");
+% place patients in a struct
+all_patients = struct("patientID",metadata.Patient, ...
+"outcome", metadata.Outcome,"conn",cell(length(metadata.Patient),1), ...
+"roi",cell(length(metadata.Patient),1), ...
+"resect",cell(length(metadata.Patient),1), ...
+"hasData",cell(length(metadata.Patient),1));
 
 % Use AAL116WM to get white matter
 fileID = fopen('localization/AAL116_WM.txt');
@@ -25,44 +29,63 @@ all_locs = [atlas_info{2}];
 
 %% Figure 2A: anatomical analysis
 
-% get all necessary data from all patients
-% all_patients = [all_good_patients, all_poor_patients];
+% set up arrays to store data
+id_field = {all_patients.patientID};
+conn_field = {all_patients.conn};
+roi_field = {all_patients.roi};
+resect_field = {all_patients.resect};
+outcome_field = {all_patients.outcome};
+hasData_field = {all_patients.hasData};
 
-% get number of patients
-num_patients = length(all_patients);
-
-% intialize input arrays for the atlas
-all_conn = cell(1,num_patients);
-all_roi = cell(1,num_patients);
-all_resect = cell(1,num_patients);
-region_list = zeros(1,117); % for the 117 AAL regions
-
-% load in data from all patients
-for k = 1:length(all_patients)
-    patientID = all_patients{k};
-    datapath = sprintf("data/%s/patient_data.mat",patientID);
+% load in data from all poor outcome patients
+for k = 1:length(metadata.Patient)
+    datapath = sprintf("data/%s/patient_data.mat",id_field{k});
     if isfile(datapath)
         d = load(datapath);
-        all_conn{k} = d.II_conn;
-        all_roi{k} = d.mni_coords;
-        all_resect{k} = d.res_elec_inds;
+        conn_field{k} = d.II_conn;
+        roi_field{k} = d.mni_coords;
+        resect_field{k} = d.res_elec_inds;
+        hasData_field{k} = true;
+    else
+        hasData_field{k} = false;
     end
 end
 
-% remove empty cells if some data was not found
-all_conn = all_conn(~cellfun('isempty',all_conn));
-all_roi = all_roi(~cellfun('isempty',all_roi));
-all_resect = all_resect(~cellfun('isempty',all_resect));
+% place data back into main struct
+[all_patients.conn] = conn_field{:};
+[all_patients.roi] = roi_field{:};
+[all_patients.resect] = resect_field{:};
+[all_patients.hasData] = hasData_field{:};
+
+fprintf("\nAll patient data loaded.")
 
 % load in region numbers
+region_list = zeros(1,117); % for the 117 AAL regions
 fi = fopen("localization/AAL116_WM.txt");
 for j = 1:117
     label = split(fgetl(fi));
     region_list(j) = str2double(label{3});
 end
 
+fprintf("\nRegion list loaded.\n")
+
 % run all patients in atlas
-[mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list);
+cond = [hasData_field{:}];
+[mean_conn, std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+resect_field(cond), region_list);
+
+% run all good outcome patients in atlas
+cond = [hasData_field{:}] & strcmp(outcome_field,'good');
+[good_mean_conn, good_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+resect_field(cond), region_list);
+
+% run all poor outcome patients in atlas
+cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
+[poor_mean_conn, poor_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+resect_field(cond), region_list);
+
+% calculate difference between good and poor outcome means
+difference_mean_conn = good_mean_conn - poor_mean_conn;
 
 %% Figure 2B: cross - validate out-of-bag predictions
 
