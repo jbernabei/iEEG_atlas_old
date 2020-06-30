@@ -8,8 +8,8 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 % Input:
 %   all_conn (cell): cell array containing patient connectivity structs in
 %   order
-%   all_roi (cell): cell array containing patient mni coordinate arrays
-%   in order
+%   all_roi (cell): cell array containing regions of interest corresponding
+%   to each electrode for each patient in order
 %   all_resect (cell): cell array containing patient resected electrode
 %   arrays in order
 %   region_list (double): array containing all region labels
@@ -26,7 +26,7 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 % 6/27/2020
 
 % specify which band to use
-band = 5;
+band = 1;
 
 % get number of patients
 num_patients = length(all_conn);
@@ -37,11 +37,6 @@ num_regions = length(region_list);
 % initialize output arrays
 mean_conn = zeros(num_regions);
 std_conn = zeros(num_regions);
-
-% convert all electrode coordinates to region names
-f = @nifti_values;
-g = @(x) f(x,"localization/AAL116_WM.nii");
-[~,electrode_regions,~] = cellfun(g, all_roi, 'UniformOutput',false);
 
 fprintf("\nCalculating connections from                ")
 
@@ -58,7 +53,7 @@ for i = 1:num_regions % first region
         for p = 1:num_patients
             
             % get electrode regions for the patient
-            patient_electrode_regions = electrode_regions{p};
+            patient_electrode_regions = all_roi{p};
             % get resected electrodes for the patient
             res_elec_inds = all_resect{p};
             % get electrodes contained within first region
