@@ -5,6 +5,7 @@ z_score_mat = (patient_conn - mean_conn)./std_conn;
 
 % extract z-scores involving relevant regions
 roi_boolean = ismember(region_list,patient_roi);
-z_score_mat(~roi_boolean) = NaN;
+z_score_mat(:,~roi_boolean) = NaN;
+z_score_mat(~roi_boolean,:) = NaN;
 
 end

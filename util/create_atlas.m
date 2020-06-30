@@ -38,14 +38,15 @@ num_regions = length(region_list);
 mean_conn = zeros(num_regions);
 std_conn = zeros(num_regions);
 
-fprintf("\nCalculating connections from                ")
+fprintf("\nCalculating connections from region        ")
 
 % double loop through patients and regions
 for i = 1:num_regions % first region
+    
+    % print progress to console
+    fprintf("\b\b\b\b\b\b\b%d...",region_list(i))
+    
     for j = i:num_regions % second region
-        
-        % print progress to console
-        fprintf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b%d to %d...",region_list(i),region_list(j))
         
         % initialize list of connection strengths between region i and j
         reg_conn_strengths = zeros(1, num_patients);

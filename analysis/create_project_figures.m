@@ -97,14 +97,20 @@ resect_field(cond), region_list);
 % calculate difference between good and poor outcome means
 difference_mean_conn = good_mean_conn - poor_mean_conn;
 
+% save results to output folder
+save('output/figure_2A_data.mat','mean_conn','std_conn','good_mean_conn', ...
+'good_std_conn','poor_mean_conn', 'poor_std_conn', 'difference_mean_conn')
+
 %% Figure 2B: cross - validate out-of-bag predictions
 
 num_good_patients = sum([hasData_field{:}] & strcmp(outcome_field,'good'));
 num_poor_patients = sum([hasData_field{:}] & strcmp(outcome_field,'poor'));
 
 good_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'good'));
+poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 
 z_score_results = cell(num_good_patients,1);
+resected_z_score_results = cell(num_good_patients,1);
 
 % cross validate the non-resected region of good outcome patients
 for s = 1:length(good_patient_indices)
@@ -112,7 +118,7 @@ for s = 1:length(good_patient_indices)
     cv_patients = all_patients(good_patient_indices);
     cv_patients(s) = [];
     
-    fprintf('\nTesting patient %d of %d', s, length(good_patient_indices))
+    fprintf('\nTesting patient %d of %d:', s, length(good_patient_indices))
     
     % get connectivity atlas of excluded patients
     [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list);
@@ -125,7 +131,57 @@ for s = 1:length(good_patient_indices)
     
     % test atlas
     z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
+    
+    % get resected region labels of test patient
+    [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
+    
+    % test atlas
+    resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
 end
+
+z_score_mean = nanmean(cat(3,z_score_results{:}),3);
+resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
+
+% save results to output folder
+save('output/figure_2B_good_data.mat','z_score_mean','resected_z_score_mean')
+
+% repeat cross-validation for poor outcome patients
+
+z_score_results = cell(num_poor_patients,1);
+resected_z_score_results = cell(num_poor_patients,1);
+
+% cross validate the non-resected region of good outcome patients
+for s = 1:length(poor_patient_indices)
+    test_patient = all_patients(poor_patient_indices(s));
+    cv_patients = all_patients(poor_patient_indices);
+    cv_patients(s) = [];
+    
+    fprintf('\nTesting patient %d of %d:', s, length(poor_patient_indices))
+    
+    % get connectivity atlas of excluded patients
+    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list);
+    
+    % get connectivity atlas of test patient
+    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list);
+    
+    % get non-resected region labels of test patient
+    [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
+    
+    % test atlas
+    z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
+    
+    % get resected region labels of test patient
+    [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
+    
+    % test atlas
+    resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
+end
+
+z_score_mean = nanmean(cat(3,z_score_results{:}),3);
+resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
+
+% save results to output folder
+save('output/figure_2B_poor_data.mat','z_score_mean','resected_z_score_mean')
 
 %% Figure 2C: comparison against distance
 
