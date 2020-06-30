@@ -57,14 +57,19 @@ for i = 1:num_regions % first region
             patient_electrode_regions = all_roi{p};
             % get resected electrodes for the patient
             res_elec_inds = all_resect{p};
+            % orient vector vertically
+            res_elec_size = size(res_elec_inds);
+            if res_elec_size(1) == 1
+                res_elec_inds = res_elec_inds.';
+            end
+            
+            % calculate logical with resected indices
+            resect_boolean = cat(2,accumarray(res_elec_inds,1).',...
+            zeros(1,length(patient_electrode_regions)-max(res_elec_inds)));
             % get electrodes contained within first region
-            first_reg_elec = find(patient_electrode_regions == region_list(i));
-            % remove resected electrodes
-            first_reg_elec = first_reg_elec(~ismember(first_reg_elec,res_elec_inds));
+            first_reg_elec = find(patient_electrode_regions == region_list(i) & ~resect_boolean);
             % get electrodes contained within second region
-            second_reg_elec = find(patient_electrode_regions == region_list(j));
-            % remove resected electrodes
-            second_reg_elec = second_reg_elec(~ismember(second_reg_elec,res_elec_inds));
+            second_reg_elec = find(patient_electrode_regions == region_list(j) & ~resect_boolean);
             
             % get number of electrodes in each region
             num_first_reg_elec = length(first_reg_elec);
