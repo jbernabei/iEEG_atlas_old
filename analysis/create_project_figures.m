@@ -146,7 +146,6 @@ resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
 save('output/figure_2B_good_data.mat','z_score_mean','resected_z_score_mean')
 
 % repeat cross-validation for poor outcome patients
-
 z_score_results = cell(num_poor_patients,1);
 resected_z_score_results = cell(num_poor_patients,1);
 
@@ -177,8 +176,8 @@ for s = 1:length(poor_patient_indices)
     resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
 end
 
-z_score_mean = nanmean(cat(3,z_score_results{:}),3);
-resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
+z_score_mean = mean(cat(3,z_score_results{:}),3,'omitnan');
+resected_z_score_mean = mean(cat(3,resected_z_score_results{:}),3,'omitnan');
 
 % save results to output folder
 save('output/figure_2B_poor_data.mat','z_score_mean','resected_z_score_mean')
