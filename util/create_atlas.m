@@ -34,9 +34,8 @@ num_patients = length(all_conn);
 % get number of regions
 num_regions = length(region_list);
 
-% initialize output arrays
+% initialize output array to store connection strengths
 mean_conn = NaN(num_regions,num_regions,num_patients);
-std_conn = NaN(num_regions,num_regions,num_patients);
 
 fprintf("\nCalculating connections  ")
 
@@ -83,7 +82,6 @@ for p = 1:num_patients
         % add to output array if the region contains any electrodes
         if ~isnan(patient_strength)
             mean_conn(i,i,p) = patient_strength;
-            std_conn(i,i,p) = patient_strength;
         else
             % skip calculations for this region pair if the first region
             % does not contain any electrodes
@@ -99,23 +97,19 @@ for p = 1:num_patients
             patient_strengths = first_reg_strengths(:,second_reg_elec);
             
             % average connection strengths between the two regions
-            patient_strength = sum(sum(patient_strengths))/length(patient_strengths);
+            patient_strength = sum(sum(patient_strengths))/numel(patient_strengths);
             
-            % add to output array if there are actually any conenctions 
-            % between the two regions
-            if ~isnan(patient_strength)
-                mean_conn(i,j,p) = patient_strength;
-                std_conn(i,j,p) = patient_strength;
-            end
+            % add to output array
+            mean_conn(i,j,p) = patient_strength;
         end
     end
 end
 
+% take the standard deviation element-wise to get the std matrix
+std_conn = std(mean_conn,0,3,'omitnan');
+
 % divide out the number of patients element-wise to get the mean matrix
 mean_conn = mean(mean_conn,3,'omitnan');
-
-% take the standard deviation element-wise to get the std matrix
-std_conn = std(std_conn,0,3,'omitnan');
 
 % symmetrize both output matrices
 mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
