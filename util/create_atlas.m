@@ -38,9 +38,15 @@ num_regions = length(region_list);
 mean_conn = NaN(num_regions,num_regions,num_patients);
 std_conn = NaN(num_regions,num_regions,num_patients);
 
-fprintf("\nCalculating connections...")
+fprintf("\nCalculating connections  ")
+
+% for aesthetics
+spinner = ['|','/','-','\'];
 
 for p = 1:num_patients
+    
+    % display spinner
+    fprintf("\b%c",spinner(mod(p,4)+1))
     
     % get electrode regions for the patient
     patient_electrode_regions = all_roi{p};
@@ -78,6 +84,10 @@ for p = 1:num_patients
         if ~isnan(patient_strength)
             mean_conn(i,i,p) = patient_strength;
             std_conn(i,i,p) = patient_strength;
+        else
+            % skip calculations for this region pair if the first region
+            % does not contain any electrodes
+            continue
         end
 
         for j = i+1:num_regions % second region
@@ -89,7 +99,7 @@ for p = 1:num_patients
             patient_strengths = first_reg_strengths(:,second_reg_elec);
             
             % average connection strengths between the two regions
-            patient_strength = mean(patient_strengths(:));
+            patient_strength = sum(sum(patient_strengths))/length(patient_strengths);
             
             % add to output array if there are actually any conenctions 
             % between the two regions
@@ -111,6 +121,6 @@ std_conn = std(std_conn,0,3,'omitnan');
 mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
 std_conn = triu(std_conn) + tril(std_conn.',-1);
 
-fprintf("\nSuccessfully generated atlas for band %d.\n", band)
+fprintf("\b\b...\nSuccessfully generated atlas for band %d.\n", band)
 
 end
