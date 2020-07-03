@@ -1,4 +1,4 @@
-function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
+function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band)
 % [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -13,6 +13,7 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 %   all_resect (cell): cell array containing patient resected electrode
 %   arrays in order
 %   region_list (double): array containing all region labels
+%   band (int): frequency band to be used
 %
 % Output:
 %   mean_conn (double): (i,j) matrix of mean connectivity strengths between 
@@ -24,9 +25,6 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 % johnbe@seas.upenn.edu
 % ianzyong@seas.upenn.edu
 % 6/27/2020
-
-% specify which band to use
-band = 1;
 
 % get number of patients
 num_patients = length(all_conn);
@@ -45,7 +43,7 @@ spinner = ['|','/','-','\'];
 for p = 1:num_patients
     
     % display spinner
-    fprintf("\b%c",spinner(mod(p,4)+1))
+    fprintf("\b%c",spinner(floor(mod(p/8,4)+1)))
     
     % get electrode regions for the patient
     patient_electrode_regions = all_roi{p};

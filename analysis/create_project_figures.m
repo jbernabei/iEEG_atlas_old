@@ -37,7 +37,7 @@ hasData_field = {all_patients.hasData};
 f = @nifti_values;
 g = @(x) f(x,"localization/AAL116_WM.nii");
 
-% load in data from all poor outcome patients
+% load in data from all patients
 for k = 1:length(metadata.Patient)
     datapath = sprintf("data/%s/patient_data.mat",id_field{k});
     if isfile(datapath)
@@ -79,20 +79,23 @@ fprintf("\nRegion list loaded.\n")
 
 %% Figure 2A: anatomical analysis
 
+% all tests will be run on this band
+testBand = 4;
+
 % run all patients in atlas
 cond = [hasData_field{:}];
 [mean_conn, std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list);
+resect_field(cond), region_list, testBand);
 
 % run all good outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'good');
 [good_mean_conn, good_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list);
+resect_field(cond), region_list, testBand);
 
 % run all poor outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
 [poor_mean_conn, poor_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list);
+resect_field(cond), region_list, testBand);
 
 % calculate difference between good and poor outcome means
 difference_mean_conn = good_mean_conn - poor_mean_conn;
@@ -112,7 +115,7 @@ poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 z_score_results = cell(num_good_patients,1);
 resected_z_score_results = cell(num_good_patients,1);
 
-% cross validate the non-resected region of good outcome patients
+% cross-validation of good-outcome patients
 for s = 1:length(good_patient_indices)
     test_patient = all_patients(good_patient_indices(s));
     cv_patients = all_patients(good_patient_indices);
@@ -121,10 +124,10 @@ for s = 1:length(good_patient_indices)
     fprintf('\nTesting patient %d of %d:', s, length(good_patient_indices))
     
     % get connectivity atlas of excluded patients
-    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list);
+    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, testBand);
     
     % get connectivity atlas of test patient
-    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list);
+    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, testBand);
     
     % get non-resected region labels of test patient
     [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
@@ -142,6 +145,20 @@ end
 z_score_mean = nanmean(cat(3,z_score_results{:}),3);
 resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
 
+% plot some of the z-score results for individual patients
+for k = (1:3) % plotting only a few patients
+    z_score_plot_data = z_score_results{k};
+    z_score_plot_data = z_score_plot_data(triu(true(size(z_score_plot_data)))); % get only upper triangular values
+    z_score_plot_data = z_score_plot_data(~isnan(z_score_plot_data) & ~isinf(z_score_plot_data)); % remove NaN and Inf
+    figure
+    scatter(rand(length(z_score_plot_data(:)),1)-0.5,z_score_plot_data(:),'.')
+    title('Z-scores of functional connections')
+    set(gca,'xtick',[])
+    set(gca,'xlim',[-5,5])
+    save_name = sprintf('output/z_score_%d.png',k);
+    saveas(gcf,save_name) % save plot to output folder
+end
+
 % save results to output folder
 save('output/figure_2B_good_data.mat','z_score_mean','resected_z_score_mean')
 
@@ -149,19 +166,19 @@ save('output/figure_2B_good_data.mat','z_score_mean','resected_z_score_mean')
 z_score_results = cell(num_poor_patients,1);
 resected_z_score_results = cell(num_poor_patients,1);
 
-% cross validate the non-resected region of good outcome patients
+% calculate atlas for good outcome patients only
+% this serves as the "model" for the cross-validation
+cv_patients = all_patients(good_patient_indices);
+[mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, testBand);
+
+% cross-validation of poor-outcome patients
 for s = 1:length(poor_patient_indices)
     test_patient = all_patients(poor_patient_indices(s));
-    cv_patients = all_patients(poor_patient_indices);
-    cv_patients(s) = [];
     
     fprintf('\nTesting patient %d of %d:', s, length(poor_patient_indices))
     
-    % get connectivity atlas of excluded patients
-    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list);
-    
     % get connectivity atlas of test patient
-    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list);
+    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, testBand);
     
     % get non-resected region labels of test patient
     [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
