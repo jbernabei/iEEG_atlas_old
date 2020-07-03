@@ -8,8 +8,8 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 % Input:
 %   all_conn (cell): cell array containing patient connectivity structs in
 %   order
-%   all_roi (cell): cell array containing patient mni coordinate arrays
-%   in order
+%   all_roi (cell): cell array containing regions of interest corresponding
+%   to each electrode for each patient in order
 %   all_resect (cell): cell array containing patient resected electrode
 %   arrays in order
 %   region_list (double): array containing all region labels
@@ -26,7 +26,7 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 % 6/27/2020
 
 % specify which band to use
-band = 5;
+band = 1;
 
 % get number of patients
 num_patients = length(all_conn);
@@ -34,106 +34,87 @@ num_patients = length(all_conn);
 % get number of regions
 num_regions = length(region_list);
 
-% initialize output arrays
-mean_conn = zeros(num_regions);
-std_conn = zeros(num_regions);
+% initialize output array to store connection strengths
+mean_conn = NaN(num_regions,num_regions,num_patients);
 
-% convert all electrode coordinates to region names
-f = @nifti_values;
-g = @(x) f(x,"localization/AAL116_WM.nii");
-[~,electrode_regions,~] = cellfun(g, all_roi, 'UniformOutput',false);
+fprintf("\nCalculating connections  ")
 
-% double loop through patients and regions
-for i = 1:num_regions % first region
-    for j = i:num_regions % second region
+% for aesthetics
+spinner = ['|','/','-','\'];
+
+for p = 1:num_patients
+    
+    % display spinner
+    fprintf("\b%c",spinner(mod(p,4)+1))
+    
+    % get electrode regions for the patient
+    patient_electrode_regions = all_roi{p};
+    % get resected electrodes for the patient
+    res_elec_inds = all_resect{p};
+    % orient vector vertically
+    res_elec_size = size(res_elec_inds);
+    if res_elec_size(1) == 1
+        res_elec_inds = res_elec_inds.';
+    end
+
+    % calculate logical with resected indices
+    resect_boolean = cat(2,accumarray(res_elec_inds,1).',...
+    zeros(1,length(patient_electrode_regions)-max(res_elec_inds)));
+
+    % get connection strengths between each pair of electrodes
+    adj_matrix = all_conn{p};
+    % extract band data
+    band_matrix = adj_matrix(band).data;
+
+    % double loop through regions
+    for i = 1:num_regions % first region
         
-        % print progress to console
-        fprintf("\nCalculating connections from %d to %d...",region_list(i),region_list(j))
+        % get electrodes contained within first region
+        first_reg_elec = (patient_electrode_regions == region_list(i) & ~resect_boolean);
         
-        % initialize list of connection strengths between region i and j
-        reg_conn_strengths = zeros(1, num_patients);
+        % extract rows corresponding to electrodes in the first region
+        first_reg_strengths = band_matrix(first_reg_elec,:);
         
-        for p = 1:num_patients
-            
-            % get electrode regions for the patient
-            patient_electrode_regions = electrode_regions{p};
-            % get resected electrodes for the patient
-            res_elec_inds = all_resect{p};
-            % get electrodes contained within first region
-            first_reg_elec = find(patient_electrode_regions == region_list(i));
-            % remove resected electrodes
-            first_reg_elec = first_reg_elec(~ismember(first_reg_elec,res_elec_inds));
-            % get electrodes contained within second region
-            second_reg_elec = find(patient_electrode_regions == region_list(j));
-            % remove resected electrodes
-            second_reg_elec = second_reg_elec(~ismember(second_reg_elec,res_elec_inds));
-            
-            % get number of electrodes in each region
-            num_first_reg_elec = length(first_reg_elec);
-            num_second_reg_elec = length(second_reg_elec);
-            
-            % initialize list of connection strengths corresponding to the
-            % two regions in this patient
-            patient_conn_strengths = zeros(1, num_first_reg_elec*num_second_reg_elec);
-            
-            % get the patient's adjacency matrices
-            adj_matrix = all_conn{p};
-            
-            % find strengths of connections from region i to region j
-            for b = 1:num_first_reg_elec
-                for c = 1:num_second_reg_elec
-                    
-                    % get electrode numbers
-                    elec1 = first_reg_elec(b);
-                    elec2 = second_reg_elec(c);
-                    
-                    % get current index
-                    current_index = ((b-1)*num_second_reg_elec)+c;
-                    
-                    if elec1 ~= elec2
-                    
-                        % get connection strength from the specified band from 
-                        % the connectivity matrices
-                        patient_conn_strengths(current_index) = adj_matrix(band).data(elec1,elec2);
-                        
-                    else
-                        
-                        % mark for deletion if both electrodes are the same
-                        patient_conn_strengths(current_index) = NaN;
-                        
-                    end
-                end
-            end
-                      
-            % remove NaN values
-            patient_conn_strengths = patient_conn_strengths(~isnan(patient_conn_strengths));
-            
-            % store the average connection strength of the current patient
-            reg_conn_strengths(p) = mean(patient_conn_strengths);
- 
+        % calculate connections within the region
+        patient_strengths = first_reg_strengths(:,first_reg_elec);
+        patient_strength = mean(patient_strengths(triu(true(size(patient_strengths)),1)));
+        
+        % add to output array if the region contains any electrodes
+        if ~isnan(patient_strength)
+            mean_conn(i,i,p) = patient_strength;
+        else
+            % skip calculations for this region pair if the first region
+            % does not contain any electrodes
+            continue
         end
-        
-        % remove NaN values
-        reg_conn_strengths = reg_conn_strengths(~isnan(reg_conn_strengths));
-        
-        % find the average connection strength across all patients
-        avg_reg_conn_strength = mean(reg_conn_strengths);
+
+        for j = i+1:num_regions % second region
             
-        % find stdev
-        stdev_reg_conn_strength = std(reg_conn_strengths);
+            % get electrodes contained within second region
+            second_reg_elec = (patient_electrode_regions == region_list(j) & ~resect_boolean);
+
+            % extract connection strengths between the two regions
+            patient_strengths = first_reg_strengths(:,second_reg_elec);
             
-        % place avg and stdev in output arrays (this fills the upper
-        % triangle of both arrays)
-        mean_conn(i,j) = avg_reg_conn_strength;
-        std_conn(i,j) = stdev_reg_conn_strength;
-        
+            % average connection strengths between the two regions
+            patient_strength = sum(sum(patient_strengths))/numel(patient_strengths);
+            
+            % add to output array
+            mean_conn(i,j,p) = patient_strength;
+        end
     end
 end
+
+% take the standard deviation element-wise to get the std matrix
+std_conn = std(mean_conn,0,3,'omitnan');
+
+% divide out the number of patients element-wise to get the mean matrix
+mean_conn = mean(mean_conn,3,'omitnan');
 
 % symmetrize both output matrices
 mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
 std_conn = triu(std_conn) + tril(std_conn.',-1);
 
-fprintf("\nSuccessfully generated atlas for band %d.\n", band)
+fprintf("\b\b...\nSuccessfully generated atlas for band %d.\n", band)
 
 end
