@@ -64,9 +64,9 @@ end
 fprintf("\nAll patient data loaded.")
 
 % load in region numbers
-region_list = zeros(1,117); % for the 117 AAL regions
+region_list = zeros(1,90); % for the 90 AAL regions we will be using
 fi = fopen("localization/AAL116_WM.txt");
-for j = 1:117
+for j = 1:90
     label = split(fgetl(fi));
     region_list(j) = str2double(label{3});
 end
@@ -80,22 +80,22 @@ fprintf("\nRegion list loaded.\n")
 %% Figure 2A: anatomical analysis
 
 % all tests will be run on this band
-testBand = 4;
+test_band = 3;
 
 % run all patients in atlas
 cond = [hasData_field{:}];
 [mean_conn, std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, testBand);
+resect_field(cond), region_list, test_band);
 
 % run all good outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'good');
 [good_mean_conn, good_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, testBand);
+resect_field(cond), region_list, test_band);
 
 % run all poor outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
 [poor_mean_conn, poor_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, testBand);
+resect_field(cond), region_list, test_band);
 
 % calculate difference between good and poor outcome means
 difference_mean_conn = good_mean_conn - poor_mean_conn;
@@ -103,6 +103,16 @@ difference_mean_conn = good_mean_conn - poor_mean_conn;
 % save results to output folder
 save('output/figure_2A_data.mat','mean_conn','std_conn','good_mean_conn', ...
 'good_std_conn','poor_mean_conn', 'poor_std_conn', 'difference_mean_conn')
+
+% plot atlas of non-resected regions in good-outcome patients
+figure
+imagesc(good_mean_conn)
+title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band);
+title(title_text)
+xlabel('Region')
+ylabel('Region')
+save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band);
+%saveas(gcf,save_name) % save plot to output folder
 
 %% Figure 2B: cross - validate out-of-bag predictions
 
@@ -124,10 +134,10 @@ for s = 1:length(good_patient_indices)
     fprintf('\nTesting patient %d of %d:', s, length(good_patient_indices))
     
     % get connectivity atlas of excluded patients
-    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, testBand);
+    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band);
     
     % get connectivity atlas of test patient
-    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, testBand);
+    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
     
     % get non-resected region labels of test patient
     [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
@@ -147,7 +157,7 @@ good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
 
 % plot some of the z-score results for individual patients
 for k = (4:6) % plotting only a few patients
-    z_score_plot_data = z_score_results{k};
+    z_score_plot_data = good_z_score_results{k};
     z_score_plot_data = z_score_plot_data(triu(true(size(z_score_plot_data)))); % get only upper triangular values
     z_score_plot_data = z_score_plot_data(~isnan(z_score_plot_data) & ~isinf(z_score_plot_data)); % remove NaN and Inf
     %figure
@@ -169,7 +179,7 @@ poor_resected_z_score_results = cell(num_poor_patients,1);
 % calculate atlas for good outcome patients only
 % this serves as the "model" for the cross-validation
 cv_patients = all_patients(good_patient_indices);
-[mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, testBand);
+[mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band);
 
 % cross-validation of poor-outcome patients
 for s = 1:length(poor_patient_indices)
@@ -178,7 +188,7 @@ for s = 1:length(poor_patient_indices)
     fprintf('\nTesting patient %d of %d:', s, length(poor_patient_indices))
     
     % get connectivity atlas of test patient
-    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, testBand);
+    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
     
     % get non-resected region labels of test patient
     [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
@@ -219,7 +229,7 @@ xlabel('Z-score')
 xline(median(good_plot_data),'b','LineWidth',2);
 xline(median(good_resected_plot_data),'r','LineWidth',2);
 legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
-legend('boxoff')
+legend('Location','northeast','Box','off')
 % set(gca,'YScale','log')
 save_name = sprintf('output/avg_good_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
@@ -244,7 +254,7 @@ xlabel('Z-score')
 xline(median(poor_plot_data),'b','LineWidth',2);
 xline(median(poor_resected_plot_data),'r','LineWidth',2);
 legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
-legend('boxoff')
+legend('Location','northeast','Box','off')
 % set(gca,'YScale','log')
 save_name = sprintf('output/avg_poor_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
@@ -275,7 +285,7 @@ xlabel('Z-score')
 xline(median(good_plot_data),'b','LineWidth',2);
 xline(median(good_resected_plot_data),'r','LineWidth',2);
 legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
-legend('boxoff')
+legend('Location','northeast','Box','off')
 % set(gca,'YScale','log')
 save_name = sprintf('output/all_good_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
@@ -304,7 +314,7 @@ xlabel('Z-score')
 xline(median(poor_plot_data),'b','LineWidth',2);
 xline(median(poor_resected_plot_data),'r','LineWidth',2);
 legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
-legend('boxoff')
+legend('Location','northeast','Box','off')
 % set(gca,'YScale','log')
 save_name = sprintf('output/all_poor_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
