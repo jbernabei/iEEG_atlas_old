@@ -211,9 +211,13 @@ histogram(good_plot_data,'Normalization','probability','BinWidth',bin_width);
 hold on
 histogram(good_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
 title('Z-scores of brain regions in good-outcome patients')
-legend('Non-resected regions','Resected regions')
 ylabel('Density')
 xlabel('Z-score')
+% draw lines representing the medians of both groups
+xline(median(good_plot_data),'b','LineWidth',2)
+xline(median(good_resected_plot_data),'r','LineWidth',2)
+legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
+legend('boxoff')
 % set(gca,'YScale','log')
 save_name = sprintf('output/good_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
@@ -230,9 +234,13 @@ histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
 hold on
 histogram(poor_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
 title('Z-scores of brain regions in poor-outcome patients')
-legend('Non-resected regions','Resected regions')
 ylabel('Density')
 xlabel('Z-score')
+% draw lines representing the medians of both groups
+xline(median(poor_plot_data),'b','LineWidth',2)
+xline(median(poor_resected_plot_data),'r','LineWidth',2)
+legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
+legend('boxoff')
 % set(gca,'YScale','log')
 save_name = sprintf('output/poor_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
