@@ -142,25 +142,25 @@ for s = 1:length(good_patient_indices)
     resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
 end
 
-z_score_mean = nanmean(cat(3,z_score_results{:}),3);
-resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
+good_z_score_mean = nanmean(cat(3,z_score_results{:}),3);
+good_resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
 
 % plot some of the z-score results for individual patients
-for k = (1:3) % plotting only a few patients
+for k = (4:6) % plotting only a few patients
     z_score_plot_data = z_score_results{k};
     z_score_plot_data = z_score_plot_data(triu(true(size(z_score_plot_data)))); % get only upper triangular values
     z_score_plot_data = z_score_plot_data(~isnan(z_score_plot_data) & ~isinf(z_score_plot_data)); % remove NaN and Inf
-    figure
-    scatter(rand(length(z_score_plot_data(:)),1)-0.5,z_score_plot_data(:),'.')
-    title('Z-scores of functional connections')
-    set(gca,'xtick',[])
-    set(gca,'xlim',[-5,5])
+    %figure
+    %scatter(rand(length(z_score_plot_data(:)),1)-0.5,z_score_plot_data(:),'.')
+    %title('Z-scores of functional connections')
+    %set(gca,'xtick',[])
+    %set(gca,'xlim',[-5,5])
     save_name = sprintf('output/z_score_%d.png',k);
-    saveas(gcf,save_name) % save plot to output folder
+    %saveas(gcf,save_name) % save plot to output folder
 end
 
 % save results to output folder
-save('output/figure_2B_good_data.mat','z_score_mean','resected_z_score_mean')
+save('output/figure_2B_good_data.mat','good_z_score_mean','good_resected_z_score_mean')
 
 % repeat cross-validation for poor outcome patients
 z_score_results = cell(num_poor_patients,1);
@@ -193,11 +193,50 @@ for s = 1:length(poor_patient_indices)
     resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
 end
 
-z_score_mean = mean(cat(3,z_score_results{:}),3,'omitnan');
-resected_z_score_mean = mean(cat(3,resected_z_score_results{:}),3,'omitnan');
+poor_z_score_mean = mean(cat(3,z_score_results{:}),3,'omitnan');
+poor_resected_z_score_mean = mean(cat(3,resected_z_score_results{:}),3,'omitnan');
 
 % save results to output folder
-save('output/figure_2B_poor_data.mat','z_score_mean','resected_z_score_mean')
+save('output/figure_2B_poor_data.mat','poor_z_score_mean','poor_resected_z_score_mean')
+
+% plot z-score results for good and poor outcome patients
+bin_width = 0.2;
+figure
+% remove outliers and bottom triangle of data
+good_plot_data = rmoutliers(good_z_score_mean(triu(true(size(good_z_score_mean)))));
+good_plot_data = good_plot_data(~isnan(good_plot_data));
+good_resected_plot_data = rmoutliers(good_resected_z_score_mean);
+good_resected_plot_data = good_resected_plot_data(~isnan(good_resected_plot_data));
+histogram(good_plot_data,'Normalization','probability','BinWidth',bin_width);
+hold on
+histogram(good_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
+title('Z-scores of brain regions in good-outcome patients')
+legend('Non-resected regions','Resected regions')
+ylabel('Density')
+xlabel('Z-score')
+% set(gca,'YScale','log')
+save_name = sprintf('output/good_z_score_histogram.png');
+saveas(gcf,save_name) % save plot to output folder
+hold off
+
+% another histogram plot
+figure
+% remove outliers and bottom triangle of data
+poor_plot_data = rmoutliers(poor_z_score_mean(triu(true(size(poor_z_score_mean)))));
+poor_plot_data = poor_plot_data(~isnan(poor_plot_data));
+poor_resected_plot_data = rmoutliers(poor_resected_z_score_mean);
+poor_resected_plot_data = poor_resected_plot_data(~isnan(poor_resected_plot_data));
+histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
+hold on
+histogram(poor_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
+title('Z-scores of brain regions in poor-outcome patients')
+legend('Non-resected regions','Resected regions')
+ylabel('Density')
+xlabel('Z-score')
+% set(gca,'YScale','log')
+save_name = sprintf('output/poor_z_score_histogram.png');
+saveas(gcf,save_name) % save plot to output folder
+hold off
 
 %% Figure 2C: comparison against distance
 
