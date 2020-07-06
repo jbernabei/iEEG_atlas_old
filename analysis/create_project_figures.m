@@ -65,10 +65,12 @@ fprintf("\nAll patient data loaded.")
 
 % load in region numbers
 region_list = zeros(1,90); % for the 90 AAL regions we will be using
+region_names = cell(1,90);
 fi = fopen("localization/AAL116_WM.txt");
 for j = 1:90
     label = split(fgetl(fi));
     region_list(j) = str2double(label{3});
+    region_names{j} = label{2};
 end
 
 fprintf("\nRegion list loaded.\n")
@@ -84,17 +86,17 @@ test_band = 3;
 
 % run all patients in atlas
 cond = [hasData_field{:}];
-[mean_conn, std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+[mean_conn, std_conn, all_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
 resect_field(cond), region_list, test_band);
 
 % run all good outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'good');
-[good_mean_conn, good_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+[good_mean_conn, good_std_conn, good_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
 resect_field(cond), region_list, test_band);
 
 % run all poor outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
-[poor_mean_conn, poor_std_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+[poor_mean_conn, poor_std_conn, poor_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
 resect_field(cond), region_list, test_band);
 
 % calculate difference between good and poor outcome means
@@ -105,14 +107,47 @@ save('output/figure_2A_data.mat','mean_conn','std_conn','good_mean_conn', ...
 'good_std_conn','poor_mean_conn', 'poor_std_conn', 'difference_mean_conn')
 
 % plot atlas of non-resected regions in good-outcome patients
-figure
+fig = figure;
+set(fig,'defaultAxesTickLabelInterpreter','none');  
+fig.WindowState = 'maximized';
 imagesc(good_mean_conn)
 title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band);
 title(title_text)
+xticks((1:length(region_names)))
+yticks((1:length(region_names)))
 xlabel('Region')
 ylabel('Region')
+xticklabels(region_names)
+yticklabels(region_names)
+xtickangle(90)
+ax = gca;
+ax.XAxis.FontSize = 6;
+ax.YAxis.FontSize = 6;
 save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band);
 %saveas(gcf,save_name) % save plot to output folder
+
+% plot matrices showing number of samples available for each edge
+samples = {all_samples,good_samples,poor_samples};
+title_suffixes = {'all patients','good outcome patients','poor outcome patients'};
+for a = 1:length(samples)
+    fig = figure;
+    set(fig,'defaultAxesTickLabelInterpreter','none');
+    fig.WindowState = 'maximized';
+    imagesc(samples{a})
+    colorbar
+    title_text = sprintf('Number of samples available for %s',title_suffixes{a});
+    title(title_text)
+    xticks((1:length(region_names)))
+    yticks((1:length(region_names)))
+    xlabel('Region')
+    ylabel('Region')
+    xticklabels(region_names);
+    yticklabels(region_names);
+    xtickangle(90)
+    ax = gca;
+    ax.XAxis.FontSize = 6;
+    ax.YAxis.FontSize = 6;
+end
 
 %% Figure 2B: cross - validate out-of-bag predictions
 
@@ -154,20 +189,6 @@ end
 
 good_z_score_mean = nanmean(cat(3,good_z_score_results{:}),3);
 good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
-
-% plot some of the z-score results for individual patients
-for k = (4:6) % plotting only a few patients
-    z_score_plot_data = good_z_score_results{k};
-    z_score_plot_data = z_score_plot_data(triu(true(size(z_score_plot_data)))); % get only upper triangular values
-    z_score_plot_data = z_score_plot_data(~isnan(z_score_plot_data) & ~isinf(z_score_plot_data)); % remove NaN and Inf
-    %figure
-    %scatter(rand(length(z_score_plot_data(:)),1)-0.5,z_score_plot_data(:),'.')
-    %title('Z-scores of functional connections')
-    %set(gca,'xtick',[])
-    %set(gca,'xlim',[-5,5])
-    save_name = sprintf('output/z_score_%d.png',k);
-    %saveas(gcf,save_name) % save plot to output folder
-end
 
 % save results to output folder
 save('output/figure_2B_good_data.mat','good_z_score_mean','good_resected_z_score_mean')

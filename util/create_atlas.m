@@ -1,4 +1,4 @@
-function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band)
+function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, all_resect, region_list, band)
 % [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -20,6 +20,8 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 %   region_list(i) and region_list(j)
 %   std_conn (double): (i,j) matrix of standard deviations of connectivity 
 %   strengths between region_list(i) and region_list(j)
+%   num_samples (double): a matrix where entry (i,j) is the number of
+%   samples used to calculate the edge weight between region_list(i) and region_list(j)
 %
 % John Bernabei and Ian Ong
 % johnbe@seas.upenn.edu
@@ -106,12 +108,16 @@ end
 % take the standard deviation element-wise to get the std matrix
 std_conn = std(mean_conn,0,3,'omitnan');
 
+% get the number of samples available for each edge
+num_samples = sum(~isnan(mean_conn),3);
+
 % divide out the number of patients element-wise to get the mean matrix
 mean_conn = mean(mean_conn,3,'omitnan');
 
-% symmetrize both output matrices
+% symmetrize all output matrices
 mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
 std_conn = triu(std_conn) + tril(std_conn.',-1);
+num_samples = triu(num_samples) + tril(num_samples.',-1);
 
 fprintf("\b\b...\nSuccessfully generated atlas for band %d.\n", band)
 
