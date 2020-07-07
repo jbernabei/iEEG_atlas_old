@@ -129,12 +129,17 @@ save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band);
 % plot matrices showing number of samples available for each edge
 samples = {all_samples,good_samples,poor_samples};
 title_suffixes = {'all patients','good outcome patients','poor outcome patients'};
+
+mymap = colormap('hot');
+mymap = cat(1,[0 0 0],mymap);
+
 for a = 1:length(samples)
     fig = figure;
     set(fig,'defaultAxesTickLabelInterpreter','none');
     fig.WindowState = 'maximized';
     imagesc(samples{a})
-    colorbar
+    colorbar(gca);
+    colormap(mymap);
     title_text = sprintf('Number of samples available for %s',title_suffixes{a});
     title(title_text)
     xticks((1:length(region_names)))
@@ -147,6 +152,8 @@ for a = 1:length(samples)
     ax = gca;
     ax.XAxis.FontSize = 6;
     ax.YAxis.FontSize = 6;
+    save_name = sprintf('output/samples_available_%d.png',a);
+    saveas(gcf,save_name)
 end
 
 %% Figure 2B: cross - validate out-of-bag predictions
