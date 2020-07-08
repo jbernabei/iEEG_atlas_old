@@ -1,5 +1,5 @@
-function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band)
-% [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
+function [mean_conn, std_conn, num_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band)
+% [mean_conn, std_conn, num_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
 % all mni labels, and outputs two matrices representing the average and
@@ -20,11 +20,13 @@ function [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, reg
 %   region_list(i) and region_list(j)
 %   std_conn (double): (i,j) matrix of standard deviations of connectivity 
 %   strengths between region_list(i) and region_list(j)
+%   num_conn (double): (i,j) matrix of number of patients with each edge
+%   measured (off diagonal) and each node measured (on diagonal)
 %
 % John Bernabei and Ian Ong
 % johnbe@seas.upenn.edu
 % ianzyong@seas.upenn.edu
-% 6/27/2020
+% 7/5/2020
 
 % get number of patients
 num_patients = length(all_conn);
@@ -33,7 +35,7 @@ num_patients = length(all_conn);
 num_regions = length(region_list);
 
 % initialize output array to store connection strengths
-mean_conn = NaN(num_regions,num_regions,num_patients);
+mean_conn = NaN(90,90,num_patients);
 
 fprintf("\nCalculating connections  ")
 
@@ -65,7 +67,7 @@ for p = 1:num_patients
     band_matrix = adj_matrix(band).data;
 
     % double loop through regions
-    for i = 1:num_regions % first region
+    for i = 1:90 % first region
         
         % get electrodes contained within first region
         first_reg_elec = (patient_electrode_regions == region_list(i) & ~resect_boolean);
@@ -86,7 +88,7 @@ for p = 1:num_patients
             continue
         end
 
-        for j = i+1:num_regions % second region
+        for j = (i+1):90 % second region
             
             % get electrodes contained within second region
             second_reg_elec = (patient_electrode_regions == region_list(j) & ~resect_boolean);
@@ -103,6 +105,13 @@ for p = 1:num_patients
     end
 end
 
+% calculate num conn
+for i = 1:90
+    for j = 1:90
+        num_conn(i,j) = sum(~isnan(mean_conn(i,j,:)));
+    end
+end
+
 % take the standard deviation element-wise to get the std matrix
 std_conn = std(mean_conn,0,3,'omitnan');
 
@@ -112,6 +121,7 @@ mean_conn = mean(mean_conn,3,'omitnan');
 % symmetrize both output matrices
 mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
 std_conn = triu(std_conn) + tril(std_conn.',-1);
+num_conn = triu(num_conn) + tril(num_conn.',-1);
 
 fprintf("\b\b...\nSuccessfully generated atlas for band %d.\n", band)
 
