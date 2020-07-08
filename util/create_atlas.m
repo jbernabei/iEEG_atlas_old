@@ -1,4 +1,4 @@
-function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, all_resect, region_list, band)
+function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold)
 % [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -14,6 +14,8 @@ function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, al
 %   arrays in order
 %   region_list (double): array containing all region labels
 %   band (int): frequency band to be used
+%   threshold (int): minimum sample size required for edges to be
+%   incorporated into the atlas. Default value = 1
 %
 % Output:
 %   mean_conn (double): (i,j) matrix of mean connectivity strengths between 
@@ -27,6 +29,9 @@ function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, al
 % johnbe@seas.upenn.edu
 % ianzyong@seas.upenn.edu
 % 6/27/2020
+
+% sets default threshold value if none is given
+if ~exist('threshold','var'), threshold = 1; end
 
 % get number of patients
 num_patients = length(all_conn);
@@ -113,6 +118,11 @@ num_samples = sum(~isnan(mean_conn),3);
 
 % divide out the number of patients element-wise to get the mean matrix
 mean_conn = mean(mean_conn,3,'omitnan');
+
+% remove edge values and standard deviations for edges with sample sizes
+% less than the threshold
+mean_conn(num_samples < threshold) = NaN;
+std_conn(num_samples < threshold) = NaN;
 
 % symmetrize all output matrices
 mean_conn = triu(mean_conn) + tril(mean_conn.',-1);

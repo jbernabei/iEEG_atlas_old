@@ -84,20 +84,23 @@ fprintf("\nRegion list loaded.\n")
 % all tests will be run on this band
 test_band = 3;
 
+% minimum sample size required for calculated edges to be considered
+test_threshold = 2;
+
 % run all patients in atlas
 cond = [hasData_field{:}];
 [mean_conn, std_conn, all_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, test_band);
+resect_field(cond), region_list, test_band, test_threshold);
 
 % run all good outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'good');
 [good_mean_conn, good_std_conn, good_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, test_band);
+resect_field(cond), region_list, test_band, test_threshold);
 
 % run all poor outcome patients in atlas
 cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
 [poor_mean_conn, poor_std_conn, poor_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, test_band);
+resect_field(cond), region_list, test_band, test_threshold);
 
 % calculate difference between good and poor outcome means
 difference_mean_conn = good_mean_conn - poor_mean_conn;
@@ -107,24 +110,24 @@ save('output/figure_2A_data.mat','mean_conn','std_conn','good_mean_conn', ...
 'good_std_conn','poor_mean_conn', 'poor_std_conn', 'difference_mean_conn')
 
 % plot atlas of non-resected regions in good-outcome patients
-fig = figure;
-set(fig,'defaultAxesTickLabelInterpreter','none');  
-fig.WindowState = 'maximized';
-imagesc(good_mean_conn)
-title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band);
-title(title_text)
-xticks((1:length(region_names)))
-yticks((1:length(region_names)))
-xlabel('Region')
-ylabel('Region')
-xticklabels(region_names)
-yticklabels(region_names)
-xtickangle(90)
-ax = gca;
-ax.XAxis.FontSize = 6;
-ax.YAxis.FontSize = 6;
-save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band);
-%saveas(gcf,save_name) % save plot to output folder
+% fig = figure;
+% set(fig,'defaultAxesTickLabelInterpreter','none');  
+% fig.WindowState = 'maximized';
+% imagesc(good_mean_conn)
+% title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band, test_threshold);
+% title(title_text)
+% xticks((1:length(region_names)))
+% yticks((1:length(region_names)))
+% xlabel('Region')
+% ylabel('Region')
+% xticklabels(region_names)
+% yticklabels(region_names)
+% xtickangle(90)
+% ax = gca;
+% ax.XAxis.FontSize = 6;
+% ax.YAxis.FontSize = 6;
+% save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band, test_threshold);
+% saveas(gcf,save_name) % save plot to output folder
 
 % plot matrices showing number of samples available for each edge
 samples = {all_samples,good_samples,poor_samples};
@@ -133,28 +136,28 @@ title_suffixes = {'all patients','good outcome patients','poor outcome patients'
 mymap = colormap('hot');
 mymap = cat(1,[0 0 0],mymap);
 
-for a = 1:length(samples)
-    fig = figure;
-    set(fig,'defaultAxesTickLabelInterpreter','none');
-    fig.WindowState = 'maximized';
-    imagesc(samples{a})
-    colorbar(gca);
-    colormap(mymap);
-    title_text = sprintf('Number of samples available for %s',title_suffixes{a});
-    title(title_text)
-    xticks((1:length(region_names)))
-    yticks((1:length(region_names)))
-    xlabel('Region')
-    ylabel('Region')
-    xticklabels(region_names);
-    yticklabels(region_names);
-    xtickangle(90)
-    ax = gca;
-    ax.XAxis.FontSize = 6;
-    ax.YAxis.FontSize = 6;
-    save_name = sprintf('output/samples_available_%d.png',a);
-    saveas(gcf,save_name)
-end
+% for a = 1:length(samples)
+%     fig = figure;
+%     set(fig,'defaultAxesTickLabelInterpreter','none');
+%     fig.WindowState = 'maximized';
+%     imagesc(samples{a})
+%     colorbar(gca);
+%     colormap(mymap);
+%     title_text = sprintf('Sample sizes by edge (%s)',title_suffixes{a});
+%     title(title_text)
+%     xticks((1:length(region_names)))
+%     yticks((1:length(region_names)))
+%     xlabel('Region')
+%     ylabel('Region')
+%     xticklabels(region_names);
+%     yticklabels(region_names);
+%     xtickangle(90)
+%     ax = gca;
+%     ax.XAxis.FontSize = 6;
+%     ax.YAxis.FontSize = 6;
+%     save_name = sprintf('output/samples_available_%d.png',a);
+%     saveas(gcf,save_name)
+% end
 
 %% Figure 2B: cross - validate out-of-bag predictions
 
@@ -176,7 +179,7 @@ for s = 1:length(good_patient_indices)
     fprintf('\nTesting patient %d of %d:', s, length(good_patient_indices))
     
     % get connectivity atlas of excluded patients
-    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band);
+    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
     
     % get connectivity atlas of test patient
     [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
@@ -207,7 +210,7 @@ poor_resected_z_score_results = cell(num_poor_patients,1);
 % calculate atlas for good outcome patients only
 % this serves as the "model" for the cross-validation
 cv_patients = all_patients(good_patient_indices);
-[mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band);
+[mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
 
 % cross-validation of poor-outcome patients
 for s = 1:length(poor_patient_indices)
