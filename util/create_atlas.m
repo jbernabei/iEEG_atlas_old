@@ -1,5 +1,5 @@
-function [mean_conn, std_conn, num_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band)
-% [mean_conn, std_conn, num_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
+function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold)
+% [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
 % all mni labels, and outputs two matrices representing the average and
@@ -14,19 +14,24 @@ function [mean_conn, std_conn, num_conn] = create_atlas(all_conn, all_roi, all_r
 %   arrays in order
 %   region_list (double): array containing all region labels
 %   band (int): frequency band to be used
+%   threshold (int): minimum sample size required for edges to be
+%   incorporated into the atlas. Default value = 1
 %
 % Output:
 %   mean_conn (double): (i,j) matrix of mean connectivity strengths between 
 %   region_list(i) and region_list(j)
 %   std_conn (double): (i,j) matrix of standard deviations of connectivity 
 %   strengths between region_list(i) and region_list(j)
-%   num_conn (double): (i,j) matrix of number of patients with each edge
-%   measured (off diagonal) and each node measured (on diagonal)
+%   num_samples (double): a matrix where entry (i,j) is the number of
+%   samples used to calculate the edge weight between region_list(i) and region_list(j)
 %
 % John Bernabei and Ian Ong
 % johnbe@seas.upenn.edu
 % ianzyong@seas.upenn.edu
 % 7/5/2020
+
+% sets default threshold value if none is given
+if ~exist('threshold','var'), threshold = 1; end
 
 % get number of patients
 num_patients = length(all_conn);
@@ -105,23 +110,24 @@ for p = 1:num_patients
     end
 end
 
-% calculate num conn
-for i = 1:90
-    for j = 1:90
-        num_conn(i,j) = sum(~isnan(mean_conn(i,j,:)));
-    end
-end
-
 % take the standard deviation element-wise to get the std matrix
 std_conn = std(mean_conn,0,3,'omitnan');
+
+% get the number of samples available for each edge
+num_samples = sum(~isnan(mean_conn),3);
 
 % divide out the number of patients element-wise to get the mean matrix
 mean_conn = mean(mean_conn,3,'omitnan');
 
-% symmetrize both output matrices
+% remove edge values and standard deviations for edges with sample sizes
+% less than the threshold
+mean_conn(num_samples < threshold) = NaN;
+std_conn(num_samples < threshold) = NaN;
+
+% symmetrize all output matrices
 mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
 std_conn = triu(std_conn) + tril(std_conn.',-1);
-num_conn = triu(num_conn) + tril(num_conn.',-1);
+num_samples = triu(num_samples) + tril(num_samples.',-1);
 
 fprintf("\b\b...\nSuccessfully generated atlas for band %d.\n", band)
 

@@ -10,3 +10,7 @@
 
 # OSX / *nix default autosave extension
 *.m~
+
+### Other ###
+# output images
+*.png

@@ -71,11 +71,13 @@ end
 fprintf('\nAll patient data loaded.')
 
 % load in region numbers
-region_list = zeros(1,117); % for the 117 AAL regions
-fi = fopen('localization/AAL116_WM.txt');
-for j = 1:117
+region_list = zeros(1,90); % for the 90 AAL regions we will be using
+region_names = cell(1,90);
+fi = fopen("localization/AAL116_WM.txt");
+for j = 1:90
     label = split(fgetl(fi));
     region_list(j) = str2double(label{3});
+    region_names{j} = label{2};
 end
 
 fprintf('\nRegion list loaded.\n')
@@ -132,6 +134,27 @@ end
 
 [~, all_elec_roi, ~] = nifti_values(all_elecs,'localization/AAL116_WM.nii');
 
+% all tests will be run on this band
+test_band = 3;
+
+% minimum sample size required for calculated edges to be considered
+test_threshold = 2;
+
+% run all patients in atlas
+cond = [hasData_field{:}];
+[mean_conn, std_conn, all_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
+resect_field(cond), region_list, test_band, test_threshold);
+
+% run all good outcome patients in atlas
+cond = [hasData_field{:}] & strcmp(outcome_field,'good');
+[good_mean_conn, good_std_conn, good_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
+resect_field(cond), region_list, test_band, test_threshold);
+
+% run all poor outcome patients in atlas
+cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
+[poor_mean_conn, poor_std_conn, poor_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
+resect_field(cond), region_list, test_band, test_threshold);
+
 unused_elecs = [find(all_elec_roi==0),find(all_elec_roi>9000)];
 
 all_elecs(unused_elecs,:) = [];
@@ -140,6 +163,57 @@ final_elec_matrix = [all_elecs,-1*ones(size(all_elecs,1),1),ones(size(all_elecs,
 dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
 BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','final_render.mat','output/elecs.jpg')
 %% Figure 2A: cross - validate out-of-bag predictions on good outcome patients
+% plot atlas of non-resected regions in good-outcome patients
+% fig = figure;
+% set(fig,'defaultAxesTickLabelInterpreter','none');  
+% fig.WindowState = 'maximized';
+% imagesc(good_mean_conn)
+% title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band, test_threshold);
+% title(title_text)
+% xticks((1:length(region_names)))
+% yticks((1:length(region_names)))
+% xlabel('Region')
+% ylabel('Region')
+% xticklabels(region_names)
+% yticklabels(region_names)
+% xtickangle(90)
+% ax = gca;
+% ax.XAxis.FontSize = 6;
+% ax.YAxis.FontSize = 6;
+% save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band, test_threshold);
+% saveas(gcf,save_name) % save plot to output folder
+
+% plot matrices showing number of samples available for each edge
+samples = {all_samples,good_samples,poor_samples};
+title_suffixes = {'all patients','good outcome patients','poor outcome patients'};
+
+mymap = colormap('hot');
+mymap = cat(1,[0 0 0],mymap);
+
+% for a = 1:length(samples)
+%     fig = figure;
+%     set(fig,'defaultAxesTickLabelInterpreter','none');
+%     fig.WindowState = 'maximized';
+%     imagesc(samples{a})
+%     colorbar(gca);
+%     colormap(mymap);
+%     title_text = sprintf('Sample sizes by edge (%s)',title_suffixes{a});
+%     title(title_text)
+%     xticks((1:length(region_names)))
+%     yticks((1:length(region_names)))
+%     xlabel('Region')
+%     ylabel('Region')
+%     xticklabels(region_names);
+%     yticklabels(region_names);
+%     xtickangle(90)
+%     ax = gca;
+%     ax.XAxis.FontSize = 6;
+%     ax.YAxis.FontSize = 6;
+%     save_name = sprintf('output/samples_available_%d.png',a);
+%     saveas(gcf,save_name)
+% end
+
+%% Figure 2B: cross - validate out-of-bag predictions
 
 num_good_patients = sum([hasData_field{:}] & strcmp(outcome_field,'good'));
 num_poor_patients = sum([hasData_field{:}] & strcmp(outcome_field,'poor'));
@@ -147,142 +221,188 @@ num_poor_patients = sum([hasData_field{:}] & strcmp(outcome_field,'poor'));
 good_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'good'));
 poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 
-z_score_results = cell(num_good_patients,1);
-resected_z_score_results = cell(num_good_patients,1);
+good_z_score_results = cell(num_good_patients,1);
+good_resected_z_score_results = cell(num_good_patients,1);
 
-for f = 1:5
-
-    % cross-validation of good-outcome patients
-    for s = 1:length(good_patient_indices)
-        test_patient = all_patients(good_patient_indices(s));
-        cv_patients = all_patients(good_patient_indices);
-        cv_patients(s) = [];
-
-        fprintf('\nTesting patient %d of %d:', s, length(good_patient_indices))
-
-        % get connectivity atlas of excluded patients
-        [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, f);
-
-        % get connectivity atlas of test patient
-        [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, f);
-
-        % get non-resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        [z_score_results{s}, corr_results_all(s,f)] = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-
-        % get resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        [resected_z_score_results{s}, corr_results_all(s,f)] = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-    end
+=======
+% cross-validation of good-outcome patients
+for s = 1:length(good_patient_indices)
+    test_patient = all_patients(good_patient_indices(s));
+    cv_patients = all_patients(good_patient_indices);
+    cv_patients(s) = [];
+    
+    fprintf('\nTesting patient %d of %d:', s, length(good_patient_indices))
+    
+    % get connectivity atlas of excluded patients
+    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
+    
+    % get connectivity atlas of test patient
+    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
+    
+    % get non-resected region labels of test patient
+    [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
+    
+    % test atlas
+    good_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
+    
+    % get resected region labels of test patient
+    [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
+    
+    % test atlas
+    good_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
 end
 
-mean(corr_results_all)
-good_z_score_mean = nanmean(cat(3,z_score_results{:}),3);
-good_resected_z_score_mean = nanmean(cat(3,resected_z_score_results{:}),3);
-
-% what we need is correlation between atlas and held-out patient's data
-
-%% cross validate on poor outcome patients
-
-%%
-% plot some of the z-score results for individual patients
-for k = (4:6) % plotting only a few patients
-    z_score_plot_data = z_score_results{k};
-    z_score_plot_data = z_score_plot_data(triu(true(size(z_score_plot_data)))); % get only upper triangular values
-    z_score_plot_data = z_score_plot_data(~isnan(z_score_plot_data) & ~isinf(z_score_plot_data)); % remove NaN and Inf
-    %figure
-    %scatter(rand(length(z_score_plot_data(:)),1)-0.5,z_score_plot_data(:),'.')
-    %title('Z-scores of functional connections')
-    %set(gca,'xtick',[])
-    %set(gca,'xlim',[-5,5])
-    %save_name = sprintf('output/z_score_%d.png',k);
-    %saveas(gcf,save_name) % save plot to output folder
-end
+good_z_score_mean = nanmean(cat(3,good_z_score_results{:}),3);
+good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
 
 % save results to output folder
 %save('output/figure_2B_good_data.mat','good_z_score_mean','good_resected_z_score_mean')
 
-%% repeat cross-validation for poor outcome patients
-z_score_results = cell(num_poor_patients,1);
-resected_z_score_results = cell(num_poor_patients,1);
+% repeat cross-validation for poor outcome patients
+poor_z_score_results = cell(num_poor_patients,1);
+poor_resected_z_score_results = cell(num_poor_patients,1);
 
-for f = 1:5
-    % calculate atlas for good outcome patients only
-    % this serves as the "model" for the cross-validation
-    cv_patients = all_patients(good_patient_indices);
-    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, f);
+% calculate atlas for good outcome patients only
+% this serves as the "model" for the cross-validation
+cv_patients = all_patients(good_patient_indices);
+[mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
 
-    % cross-validation of poor-outcome patients
-    for s = [1,4:length(poor_patient_indices)]
-        test_patient = all_patients(poor_patient_indices(s));
-
-        fprintf('\nTesting patient %d of %d:', s, length(poor_patient_indices))
-
-        % get connectivity atlas of test patient
-        [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, f);
-
-        % get non-resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        [z_score_results{s}, poor_outcome_corr(s,f)] = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-
-        % get resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        [resected_z_score_results{s}, poor_outcome_corr(s,f)] = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-    end
+% cross-validation of poor-outcome patients
+for s = 1:length(poor_patient_indices)
+    test_patient = all_patients(poor_patient_indices(s));
+    
+    fprintf('\nTesting patient %d of %d:', s, length(poor_patient_indices))
+    
+    % get connectivity atlas of test patient
+    [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
+    
+    % get non-resected region labels of test patient
+    [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
+    
+    % test atlas
+    poor_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
+    
+    % get resected region labels of test patient
+    [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
+    
+    % test atlas
+    poor_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
 end
 
-mean(poor_outcome_corr([1,4:end],:))
-
-poor_z_score_mean = mean(cat(3,z_score_results{:}),3,'omitnan');
-poor_resected_z_score_mean = mean(cat(3,resected_z_score_results{:}),3,'omitnan');
+poor_z_score_mean = mean(cat(3,poor_z_score_results{:}),3,'omitnan');
+poor_resected_z_score_mean = mean(cat(3,poor_resected_z_score_results{:}),3,'omitnan');
 
 % save results to output folder
 %save('output/figure_2B_poor_data.mat','poor_z_score_mean','poor_resected_z_score_mean')
 
-%% plot z-score results for good and poor outcome patients
+% plot AVERAGED z-score results for GOOD outcome patients
 bin_width = 0.2;
 figure
 % remove outliers and bottom triangle of data
 good_plot_data = rmoutliers(good_z_score_mean(triu(true(size(good_z_score_mean)))));
-good_plot_data = good_plot_data(~isnan(good_plot_data));
+good_plot_data = good_plot_data(~isnan(good_plot_data) & ~isinf(good_plot_data));
+
 good_resected_plot_data = rmoutliers(good_resected_z_score_mean);
-good_resected_plot_data = good_resected_plot_data(~isnan(good_resected_plot_data));
+good_resected_plot_data = good_resected_plot_data(~isnan(good_resected_plot_data) & ~isinf(good_resected_plot_data));
+
 histogram(good_plot_data,'Normalization','probability','BinWidth',bin_width);
 hold on
 histogram(good_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
-title('Z-scores of brain regions in good-outcome patients')
-legend('Non-resected regions','Resected regions')
+title({'Z-scores of averaged connectivity strengths','in good outcome patients'})
 ylabel('Density')
 xlabel('Z-score')
+% draw lines representing the medians of both groups
+xline(median(good_plot_data),'b','LineWidth',2);
+xline(median(good_resected_plot_data),'r','LineWidth',2);
+legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
+legend('Location','northeast','Box','off')
 % set(gca,'YScale','log')
-save_name = sprintf('output/good_z_score_histogram.png');
+save_name = sprintf('output/avg_good_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
 hold off
 
-% another histogram plot
+% plot AVERAGED z-score results for POOR outcome patients
 figure
 % remove outliers and bottom triangle of data
 poor_plot_data = rmoutliers(poor_z_score_mean(triu(true(size(poor_z_score_mean)))));
-poor_plot_data = poor_plot_data(~isnan(poor_plot_data));
+poor_plot_data = poor_plot_data(~isnan(poor_plot_data) & ~isinf(poor_plot_data));
+
 poor_resected_plot_data = rmoutliers(poor_resected_z_score_mean);
-poor_resected_plot_data = poor_resected_plot_data(~isnan(poor_resected_plot_data));
+poor_resected_plot_data = poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data));
+
 histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
 hold on
 histogram(poor_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
-title('Z-scores of brain regions in poor-outcome patients')
-legend('Non-resected regions','Resected regions')
+title({'Z-scores of averaged connectivity strengths','in poor outcome patients'})
 ylabel('Density')
 xlabel('Z-score')
+% draw lines representing the medians of both groups
+xline(median(poor_plot_data),'b','LineWidth',2);
+xline(median(poor_resected_plot_data),'r','LineWidth',2);
+legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
+legend('Location','northeast','Box','off')
 % set(gca,'YScale','log')
-save_name = sprintf('output/poor_z_score_histogram.png');
+save_name = sprintf('output/avg_poor_z_score_histogram.png');
+saveas(gcf,save_name) % save plot to output folder
+hold off
+
+% plot ALL z-score results for GOOD outcome patients
+get_data = @(x) x(triu(true(size(x))));
+bin_width = 0.2;
+figure
+% remove outliers and bottom triangle of data
+good_plot_data = cellfun(get_data,good_z_score_results,'UniformOutput',false);
+good_plot_data = cell2mat(good_plot_data);
+good_plot_data = good_plot_data(:);
+good_plot_data = rmoutliers(good_plot_data(~isnan(good_plot_data) & ~isinf(good_plot_data)));
+
+good_resected_plot_data = cellfun(get_data,good_resected_z_score_results,'UniformOutput',false);
+good_resected_plot_data = cell2mat(good_resected_plot_data);
+good_resected_plot_data = good_resected_plot_data(:);
+good_resected_plot_data = rmoutliers(good_resected_plot_data(~isnan(good_resected_plot_data) & ~isinf(good_resected_plot_data)));
+
+histogram(good_plot_data,'Normalization','probability','BinWidth',bin_width);
+hold on
+histogram(good_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
+title('Z-scores of connectivity strengths in good outcome patients')
+ylabel('Density')
+xlabel('Z-score')
+% draw lines representing the medians of both groups
+xline(median(good_plot_data),'b','LineWidth',2);
+xline(median(good_resected_plot_data),'r','LineWidth',2);
+legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
+legend('Location','northeast','Box','off')
+% set(gca,'YScale','log')
+save_name = sprintf('output/all_good_z_score_histogram.png');
+saveas(gcf,save_name) % save plot to output folder
+hold off
+
+% plot ALL z-score results for POOR outcome patients
+figure
+% remove outliers and bottom triangle of data
+poor_plot_data = cellfun(get_data,poor_z_score_results,'UniformOutput',false);
+poor_plot_data = cell2mat(poor_plot_data);
+poor_plot_data = poor_plot_data(:);
+poor_plot_data = rmoutliers(poor_plot_data(~isnan(poor_plot_data) & ~isinf(poor_plot_data)));
+
+poor_resected_plot_data = cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false);
+poor_resected_plot_data = cell2mat(poor_resected_plot_data);
+poor_resected_plot_data = poor_resected_plot_data(:);
+poor_resected_plot_data = rmoutliers(poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data)));
+
+histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
+hold on
+histogram(poor_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
+title('Z-scores of connectivity strengths in poor outcome patients')
+ylabel('Density')
+xlabel('Z-score')
+% draw lines representing the medians of both groups
+xline(median(poor_plot_data),'b','LineWidth',2);
+xline(median(poor_resected_plot_data),'r','LineWidth',2);
+legend('Non-resected regions','Resected regions','Non-resected median','Resected median')
+legend('Location','northeast','Box','off')
+% set(gca,'YScale','log')
+save_name = sprintf('output/all_poor_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
 hold off
 
