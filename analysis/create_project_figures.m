@@ -10,13 +10,20 @@ warning('OFF', 'MATLAB:table:ModifiedAndSavedVarnames')
 
 % load in data from excel spreadsheet
 metadata = readtable("data/atlas_project_metadata.xlsx");
+
+good_outcome_pts = {'HUP082','HUP086','HUP088','HUP094','HUP105','HUP106','HUP111','HUP116','HUP117',...
+                    'HUP125','HUP130','HUP139','HUP140','HUP150','HUP151','HUP157','HUP163','HUP164',...
+                    'HUP165','HUP173','HUP177','HUP179','HUP180','HUP181','HUP185'};
+
+poor_outcome_pts = {'HUP060','HUP075','HUP078','HUP112','HUP133','HUP138','HUP141','HUP158','HUP170','HUP171','HUP172','HUP188'};
+
 % place patients in a struct
-all_patients = struct("patientID",metadata.Patient, ...
-"outcome", metadata.Outcome,"conn",cell(length(metadata.Patient),1), ...
-"coords",cell(length(metadata.Patient),1), ...
-"roi",cell(length(metadata.Patient),1), ...
-"resect",cell(length(metadata.Patient),1), ...
-"hasData",cell(length(metadata.Patient),1));
+all_patients = struct('patientID',metadata.Patient, ...
+'outcome', metadata.Outcome,'conn',cell(length(metadata.Patient),1), ...
+'coords',cell(length(metadata.Patient),1), ...
+'roi',cell(length(metadata.Patient),1), ...
+'resect',cell(length(metadata.Patient),1), ...
+'hasData',cell(length(metadata.Patient),1));
 
 % Use AAL116WM to get white matter
 fileID = fopen('localization/AAL116_WM.txt');
@@ -35,11 +42,11 @@ hasData_field = {all_patients.hasData};
 
 % functions to help convert mni coordinates to regions of interest
 f = @nifti_values;
-g = @(x) f(x,"localization/AAL116_WM.nii");
+g = @(x) f(x,'localization/AAL116_WM.nii');
 
 % load in data from all patients
 for k = 1:length(metadata.Patient)
-    datapath = sprintf("data/%s/patient_data.mat",id_field{k});
+    datapath = sprintf('data/%s/patient_data.mat',id_field{k});
     if isfile(datapath)
         d = load(datapath);
         conn_field{k} = d.II_conn;
@@ -61,7 +68,7 @@ end
 [all_patients.resect] = resect_field{:};
 [all_patients.hasData] = hasData_field{:};
 
-fprintf("\nAll patient data loaded.")
+fprintf('\nAll patient data loaded.')
 
 % load in region numbers
 region_list = zeros(1,90); % for the 90 AAL regions we will be using
@@ -73,13 +80,59 @@ for j = 1:90
     region_names{j} = label{2};
 end
 
-fprintf("\nRegion list loaded.\n")
+fprintf('\nRegion list loaded.\n')
 
-%% Figure 1A: visualize adjacency matrix (one panel in pipeline figure)
+%% Figure 1A: construct adjacency matrix of all good outcome patients
 
-%% Figure 1B: visualize brain (one panel in pipeline figure)
+for f = 1:5
+    % all tests will be run on this band
+    testBand = f;
 
-%% Figure 2A: anatomical analysis
+    % run all good outcome patients in atlas
+    cond = [hasData_field{:}] & strcmp(outcome_field,'good');
+    [good_mean_conn{f}, good_std_conn{f}, num_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+    resect_field(cond), region_list, testBand);
+
+    % visualize adjacency matrices with labels added
+    figure(f+1);clf;
+    imagesc(good_mean_conn{f})
+    set(gca,'xtick',[1:90],'xticklabel',all_locs)
+    xtickangle(45)
+    set(gca,'ytick',[1:90],'yticklabel',all_locs)
+    colorbar
+    
+end
+
+% visualize number of patients with each connection
+figure(1);clf
+imagesc(num_conn)
+colorbar
+set(gca,'ytick',[1:90],'yticklabel',all_locs)
+
+%% Figure 1B: render all electrodes used and modules of brain ROI (get rid of regions w/o elecs)
+% store all electrodes here
+all_elecs = [];
+
+% loop through all patients
+for k = 1:length(metadata.Patient)
+    
+    % check whether they are good outcome and have data (thus in atlas)
+    if all_patients(k).hasData && strcmp(all_patients(k).outcome,'good')
+        
+        % extract coordinates
+        pt_elecs = all_patients(k).coords;
+        
+        % get rid of resected electrodes
+        pt_elecs(all_patients(k).resect,:) = [];
+        
+        % assign into structure
+        all_elecs = [all_elecs;pt_elecs];
+        
+       
+    end
+end
+
+[~, all_elec_roi, ~] = nifti_values(all_elecs,'localization/AAL116_WM.nii');
 
 % all tests will be run on this band
 test_band = 3;
@@ -102,13 +155,14 @@ cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
 [poor_mean_conn, poor_std_conn, poor_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
 resect_field(cond), region_list, test_band, test_threshold);
 
-% calculate difference between good and poor outcome means
-difference_mean_conn = good_mean_conn - poor_mean_conn;
+unused_elecs = [find(all_elec_roi==0),find(all_elec_roi>9000)];
 
-% save results to output folder
-save('output/figure_2A_data.mat','mean_conn','std_conn','good_mean_conn', ...
-'good_std_conn','poor_mean_conn', 'poor_std_conn', 'difference_mean_conn')
+all_elecs(unused_elecs,:) = [];
 
+final_elec_matrix = [all_elecs,-1*ones(size(all_elecs,1),1),ones(size(all_elecs,1),1)];
+dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
+BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','final_render.mat','output/elecs.jpg')
+%% Figure 2A: cross - validate out-of-bag predictions on good outcome patients
 % plot atlas of non-resected regions in good-outcome patients
 % fig = figure;
 % set(fig,'defaultAxesTickLabelInterpreter','none');  
@@ -201,7 +255,7 @@ good_z_score_mean = nanmean(cat(3,good_z_score_results{:}),3);
 good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
 
 % save results to output folder
-save('output/figure_2B_good_data.mat','good_z_score_mean','good_resected_z_score_mean')
+%save('output/figure_2B_good_data.mat','good_z_score_mean','good_resected_z_score_mean')
 
 % repeat cross-validation for poor outcome patients
 poor_z_score_results = cell(num_poor_patients,1);
@@ -238,7 +292,7 @@ poor_z_score_mean = mean(cat(3,poor_z_score_results{:}),3,'omitnan');
 poor_resected_z_score_mean = mean(cat(3,poor_resected_z_score_results{:}),3,'omitnan');
 
 % save results to output folder
-save('output/figure_2B_poor_data.mat','poor_z_score_mean','poor_resected_z_score_mean')
+%save('output/figure_2B_poor_data.mat','poor_z_score_mean','poor_resected_z_score_mean')
 
 % plot AVERAGED z-score results for GOOD outcome patients
 bin_width = 0.2;
@@ -351,21 +405,23 @@ save_name = sprintf('output/all_poor_z_score_histogram.png');
 saveas(gcf,save_name) % save plot to output folder
 hold off
 
-%% Figure 2C: comparison against distance
+%% Clinical hypothesis testing
 
-%% Figure 3A: Distinguish between epilepsy type (mesial temporal vs neocortical)
-% temporal vs extratemporal
+% part 1
+% assemble set of bilateral (RNS) patients, and test whether they have
+% higher inter-hemispheric z scores compared to unilateral good outcome
+% patients
 
-%% Figure 3B: Relationship of connectivity to duration of epilepsy
+% part 2
+% assemble set of good outcome patients that had temporal / extratemporal
+% hypotheses and test whether connections abnormal within  / between these
+% regions
 
-%% Figure 3C: Relationship of connectivity to whether patient has generalized SZ or not
+% part 3
+% assemble set of mesial / lateral temporal patients and test whether 
 
-%% Figure 4A: localize in good outcome patients
-% make figure based upon prior calculations
+%%
 
-%% Supplement: choice of atlas / segmentation
+%% algorithm
 
 %% Figure 4B: localize in poor outcome patients
-for s = 1:length(all_poor_patients)
-    
-end

@@ -28,7 +28,7 @@ function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, al
 % John Bernabei and Ian Ong
 % johnbe@seas.upenn.edu
 % ianzyong@seas.upenn.edu
-% 6/27/2020
+% 7/5/2020
 
 % sets default threshold value if none is given
 if ~exist('threshold','var'), threshold = 1; end
@@ -40,7 +40,7 @@ num_patients = length(all_conn);
 num_regions = length(region_list);
 
 % initialize output array to store connection strengths
-mean_conn = NaN(num_regions,num_regions,num_patients);
+mean_conn = NaN(90,90,num_patients);
 
 fprintf("\nCalculating connections  ")
 
@@ -72,7 +72,7 @@ for p = 1:num_patients
     band_matrix = adj_matrix(band).data;
 
     % double loop through regions
-    for i = 1:num_regions % first region
+    for i = 1:90 % first region
         
         % get electrodes contained within first region
         first_reg_elec = (patient_electrode_regions == region_list(i) & ~resect_boolean);
@@ -93,7 +93,7 @@ for p = 1:num_patients
             continue
         end
 
-        for j = i+1:num_regions % second region
+        for j = (i+1):90 % second region
             
             % get electrodes contained within second region
             second_reg_elec = (patient_electrode_regions == region_list(j) & ~resect_boolean);
