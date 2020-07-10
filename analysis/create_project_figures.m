@@ -224,7 +224,6 @@ poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 good_z_score_results = cell(num_good_patients,1);
 good_resected_z_score_results = cell(num_good_patients,1);
 
-=======
 % cross-validation of good-outcome patients
 for s = 1:length(good_patient_indices)
     test_patient = all_patients(good_patient_indices(s));
