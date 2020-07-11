@@ -17,9 +17,13 @@ patient_edges(all_NaN) = [];
 atlas_edges(all_NaN) = [];
 
 % get correlation value
-size(atlas_edges)
-size(patient_edges)
-corr_val = corr(patient_edges,atlas_edges);
+size(atlas_edges);
+size(patient_edges);
+if isempty(patient_edges)
+    corr_val = NaN;
+else
+    corr_val = corr(patient_edges,atlas_edges);
+end
 
 % extract z-scores involving relevant regions
 roi_boolean = ismember(region_list,patient_roi);

@@ -11,6 +11,9 @@ warning('OFF', 'MATLAB:table:ModifiedAndSavedVarnames')
 % load in data from excel spreadsheet
 metadata = readtable("data/atlas_project_metadata.xlsx");
 
+% enable warnings
+warning ('on','all')
+
 good_outcome_pts = {'HUP082','HUP086','HUP088','HUP094','HUP105','HUP106','HUP111','HUP116','HUP117',...
                     'HUP125','HUP130','HUP139','HUP140','HUP150','HUP151','HUP157','HUP163','HUP164',...
                     'HUP165','HUP173','HUP177','HUP179','HUP180','HUP181','HUP185'};
@@ -41,21 +44,40 @@ outcome_field = {all_patients.outcome};
 hasData_field = {all_patients.hasData};
 
 % functions to help convert mni coordinates to regions of interest
-f = @nifti_values;
-g = @(x) f(x,'localization/AAL116_WM.nii');
+%f = @nifti_values;
+%g = @(x) f(x,'localization/AAL116_WM.nii');
 
 % load in data from all patients
 for k = 1:length(metadata.Patient)
-    datapath = sprintf('data/%s/patient_data.mat',id_field{k});
+    folderpath = sprintf('data/%s',id_field{k});
+    datapath = sprintf('%s/patient_data.mat',folderpath);
     if isfile(datapath)
+        fprintf('%s: ',datapath)
         d = load(datapath);
         conn_field{k} = d.II_conn;
+        if sum(~isnan(d.II_conn(1).data),'all') == 0
+            hasData_field{k} = false;
+            fprintf('(connectivity data is all NaNs!)\n')
+            movefile(folderpath,'data/exclude/no_conn_data')
+            continue
+        else
+            hasData_field{k} = true;
+        end
         coords_field{k} = d.mni_coords;
         resect_field{k} = d.res_elec_inds;
-        hasData_field{k} = true;
         % convert all electrode coordinates to region names
-        [~,electrode_regions,~] = cellfun(g, coords_field(k), 'UniformOutput',false);
-        roi_field{k} = electrode_regions{1};
+        try
+            %[~,electrode_regions,~] = cellfun(g, coords_field(k), 'UniformOutput',false);
+            %roi_field{k} = electrode_regions{1};
+            [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
+            roi_field{k} = electrode_regions;
+            fprintf('loaded\n')
+        catch ME
+            fprintf('failed to load\n')
+            warning('Problem converting MNI coordinates to region labels\n(%s)',datapath, ME.identifier)
+            hasData_field{k} = false;
+            movefile(folderpath,'data/exclude/out_of_bound_electrodes')
+        end
     else
         hasData_field{k} = false;
     end
@@ -83,31 +105,49 @@ end
 fprintf('\nRegion list loaded.\n')
 
 %% Figure 1A: construct adjacency matrix of all good outcome patients
+% initializing cell arrays
+good_mean_conn = cell(1,5);
+good_std_conn = cell(1,5);
+
+% minimum sample size for an edge weight to be included in the atlas
+test_threshold = 1;
 
 for f = 1:5
     % all tests will be run on this band
-    testBand = f;
+    test_band = f;
 
     % run all good outcome patients in atlas
     cond = [hasData_field{:}] & strcmp(outcome_field,'good');
     [good_mean_conn{f}, good_std_conn{f}, num_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-    resect_field(cond), region_list, testBand);
+    resect_field(cond), region_list, test_band, test_threshold);
 
     % visualize adjacency matrices with labels added
     figure(f+1);clf;
-    imagesc(good_mean_conn{f})
-    set(gca,'xtick',[1:90],'xticklabel',all_locs)
+    fig = gcf;
+    set(fig,'defaultAxesTickLabelInterpreter','none'); 
+    fig.WindowState = 'maximized';
+    imagesc(good_mean_conn{f},'AlphaData',~isnan(good_mean_conn{f}))
+    set(gca,'color',0*[1 1 1]);
+    set(gca,'xtick',(1:90),'xticklabel',all_locs,'fontsize',6)
     xtickangle(45)
-    set(gca,'ytick',[1:90],'yticklabel',all_locs)
+    set(gca,'ytick',(1:90),'yticklabel',all_locs,'fontsize',6)
     colorbar
-    
+    title(sprintf('Connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
 end
 
 % visualize number of patients with each connection
 figure(1);clf
-imagesc(num_conn)
+fig = gcf;
+set(fig,'defaultAxesTickLabelInterpreter','none'); 
+fig.WindowState = 'maximized';
+imagesc(num_conn,'AlphaData',~(num_conn==0))
+set(gca,'color',0*[1 1 1]);
+set(gca,'xtick',(1:90),'xticklabel',all_locs)
+xtickangle(45)
+set(gca,'ytick',(1:90),'yticklabel',all_locs)
+set(gca,'fontsize', 6)
 colorbar
-set(gca,'ytick',[1:90],'yticklabel',all_locs)
+title(sprintf('Sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
 
 %% Figure 1B: render all electrodes used and modules of brain ROI (get rid of regions w/o elecs)
 % store all electrodes here
@@ -168,7 +208,7 @@ BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','fina
 % set(fig,'defaultAxesTickLabelInterpreter','none');  
 % fig.WindowState = 'maximized';
 % imagesc(good_mean_conn)
-% title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band, test_threshold);
+% title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band);
 % title(title_text)
 % xticks((1:length(region_names)))
 % yticks((1:length(region_names)))
@@ -184,11 +224,11 @@ BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','fina
 % saveas(gcf,save_name) % save plot to output folder
 
 % plot matrices showing number of samples available for each edge
-samples = {all_samples,good_samples,poor_samples};
-title_suffixes = {'all patients','good outcome patients','poor outcome patients'};
-
-mymap = colormap('hot');
-mymap = cat(1,[0 0 0],mymap);
+% samples = {all_samples,good_samples,poor_samples};
+% title_suffixes = {'all patients','good outcome patients','poor outcome patients'};
+% 
+% mymap = colormap('hot');
+% mymap = cat(1,[0 0 0],mymap);
 
 % for a = 1:length(samples)
 %     fig = figure;
