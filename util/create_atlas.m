@@ -1,4 +1,4 @@
-function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold)
+function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold, silence_output)
 % [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -32,6 +32,7 @@ function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, al
 
 % sets default threshold value if none is given
 if ~exist('threshold','var'), threshold = 1; end
+if ~exist('silence_output','var'), silence_output = true; end
 
 % get number of patients
 num_patients = length(all_conn);
@@ -42,7 +43,7 @@ num_regions = length(region_list);
 % initialize output array to store connection strengths
 mean_conn = NaN(90,90,num_patients);
 
-fprintf("\nCalculating connections  ")
+if ~silence_output, fprintf("Calculating connections  "); end
 
 % for aesthetics
 spinner = ['|','/','-','\'];
@@ -50,7 +51,7 @@ spinner = ['|','/','-','\'];
 for p = 1:num_patients
     
     % display spinner
-    fprintf("\b%c",spinner(floor(mod(p/8,4)+1)))
+    if ~silence_output, fprintf("\b%c",spinner(floor(mod(p/8,4)+1))); end
     
     % get electrode regions for the patient
     patient_electrode_regions = all_roi{p};
@@ -129,6 +130,6 @@ mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
 std_conn = triu(std_conn) + tril(std_conn.',-1);
 num_samples = triu(num_samples) + tril(num_samples.',-1);
 
-fprintf("\b\b...\nSuccessfully generated atlas for band %d.\n", band)
+if ~silence_output, fprintf("\b\b... successfully generated atlas for band %d, threshold = %d.\n",band,threshold); end
 
 end
