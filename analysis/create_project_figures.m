@@ -26,7 +26,9 @@ all_patients = struct('patientID',metadata.Patient, ...
 'coords',cell(length(metadata.Patient),1), ...
 'roi',cell(length(metadata.Patient),1), ...
 'resect',cell(length(metadata.Patient),1), ...
-'hasData',cell(length(metadata.Patient),1));
+'hasData',cell(length(metadata.Patient),1), ...
+'therapy',metadata.Therapy, ...
+'implant',metadata.Implant);
 
 % Use AAL116WM to get white matter
 fileID = fopen('localization/AAL116_WM.txt');
@@ -42,6 +44,8 @@ roi_field = {all_patients.coords};
 resect_field = {all_patients.resect};
 outcome_field = {all_patients.outcome};
 hasData_field = {all_patients.hasData};
+therapy_field = {all_patients.therapy};
+implant_field = {all_patients.implant};
 
 % if true, the script will automatically move problematic data to another
 % directory

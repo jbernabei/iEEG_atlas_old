@@ -20,5 +20,5 @@
 *.edge
 
 # file to create figures/perform analyses for the presentation
-analysis/create_presentation_figures.m
-output/final_render.mat
+# analysis/create_presentation_figures.m
+# output/final_render.mat
