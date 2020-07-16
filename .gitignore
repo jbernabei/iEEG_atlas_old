@@ -12,5 +12,13 @@
 *.m~
 
 ### Other ###
-# output images
+# output images/files
 *.png
+*.jpg
+*.jpeg
+*.node
+*.edge
+
+# file to create figures/perform analyses for the presentation
+analysis/create_presentation_figures.m
+output/final_render.mat
