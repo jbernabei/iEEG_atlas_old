@@ -201,10 +201,10 @@ resect_field(cond), region_list, test_band, test_threshold);
 unused_elecs = [find(all_elec_roi==0),find(all_elec_roi>9000)];
 
 all_elecs(unused_elecs,:) = [];
-
 final_elec_matrix = [all_elecs,-1*ones(size(all_elecs,1),1),ones(size(all_elecs,1),1)];
 dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
-BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','final_render.mat','output/elecs.jpg')
+save('output/atlas.edge','good_mean_conn','-ascii');
+BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','output/atlas.edge','final_render.mat','output/elecs.jpg')
 %% Figure 2A: cross - validate out-of-bag predictions on good outcome patients
 % plot atlas of non-resected regions in good-outcome patients
 % fig = figure;
