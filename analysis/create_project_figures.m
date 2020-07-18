@@ -279,6 +279,9 @@ poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 good_z_score_results = cell(num_good_patients,1);
 good_resected_z_score_results = cell(num_good_patients,1);
 
+% to hold logistic regression results
+mnr_results = cell(5,3);
+
 set(0,'units','inches')
 screen_dims = get(0,'ScreenSize');
 figure_width = 12;
@@ -496,8 +499,145 @@ for test_band = 1:5
     fprintf('p-value = %d',p)
     if h, fprintf('*'); end
 
+    % logistic regression
+    % predictors: distance between mean resected and mean non-resected 
+    % z-scores, mean & variance of the distribution of all z scores together
+    % response: good or poor outcome
+    
+    % helper function
+    get_average_data = @(x) nanmean(x(triu(true(size(x)))));
+    
+    % get distance values for good outcome patients
+    good_distances = cell2mat(cellfun(get_average_data,good_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,good_z_score_results,'UniformOutput',false));
+    
+    % get distance values for poor outcome patients and append them
+    poor_distances = cell2mat(cellfun(get_average_data,poor_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,poor_z_score_results,'UniformOutput',false));
+    
+    % combine two arrays
+    distances = [good_distances; poor_distances];
+    
+    % get mean z-scores
+    good_means = nanmean([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
+    
+    poor_means = nanmean([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
+    
+    z_score_means = [good_means, poor_means];
+    
+    % get variance of z-scores
+    good_variances = nanvar([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
+    
+    poor_variances = nanvar([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
+    
+    z_score_variances = [good_variances, poor_variances];
+    
+    % generate array of outcomes
+    outcomes = categorical([repmat(["good"],1,length(good_patient_indices)), repmat(["poor"],1,length(poor_patient_indices))]).';
+
+    predictors = [distances,z_score_means.',z_score_variances.'];
+    
+    % remove any patients with NaN predictor values
+    good_rows = ~any(isnan(predictors),2);
+    predictors = predictors(good_rows,:);
+    outcomes = outcomes(good_rows,:);
+    
+    % perform logistic regression
+    [B,dev,stats] = mnrfit(predictors,outcomes.','Model','hierarchical');
+    mnr_results(test_band,:) = {B,dev,stats};
 end
 fprintf('\n')
+
+%% plot logistic regression results
+
+bound = 20;
+interval = 2;
+jitter = 0.5;
+marker_size = 100;
+
+fig = figure;
+fig.WindowState = 'maximized';
+hold on
+
+for test_band = 1:5
+    coeffs = mnr_results{test_band,1};
+    f = @(x,y,z) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y)+(coeffs(4)*z))));
+    [x,y,z] = ndgrid(-bound/2:interval:bound/2);
+    x = x + jitter*(rand(size(x))-0.5);
+    y = y + jitter*(rand(size(y))-0.5);
+    z = z + jitter*(rand(size(z))-0.5);
+    v = f(x,y,z);
+
+%     p1 = patch(isosurface(x,y,z,v,0.25));
+%     hold on
+%     p2 = patch(isosurface(x,y,z,v,0.5));
+%     p3 = patch(isosurface(x,y,z,v,0.75));
+%     isonormals(x,y,z,v,p1);
+%     isonormals(x,y,z,v,p2);
+%     isonormals(x,y,z,v,p3);
+%     p1.FaceColor = 'red';
+%     p2.FaceColor = 'yellow';
+%     p3.FaceColor = 'green';
+%     p1.EdgeColor = 'none';
+%     p2.EdgeColor = 'none';
+%     p3.EdgeColor = 'green';
+%     daspect([1,1,1])
+%     view(3)
+    
+    x = reshape(x,[],1); 
+    y = reshape(y,[],1);
+    z = reshape(z,[],1);
+    v = reshape(v,[],1);
+    
+    subplot(2,3,test_band)
+    set(gca, 'LooseInset', get(gca,'TightInset'))
+    scatter3(x,y,z,marker_size,v,'filled','o');
+    alpha(2*interval/bound);
+    view(3)
+    axis tight
+    
+    cb = colorbar;
+    cb.Label.String = 'Probability of good surgical outcome';
+    
+    colormap('parula')
+    
+    xlabel('Distance')
+    ylabel('Mean z-score')
+    zlabel('Variance of z-scores')
+    
+    title({sprintf('Logistic regression for patient outcome on band %d',test_band),''});
+end
+
+saveas(gcf,'output/3d_logistic_regression_results.png') % save plot to output folder
+
+hold off
+
+fig = figure;
+fig.WindowState = 'maximized';
+hold on
+
+for test_band = 1:5
+    coeffs = mnr_results{test_band,1};
+    f = @(x,y) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y))));
+    [x,y] = ndgrid(-bound/2:interval/2:bound/2);
+    v = f(x,y);
+    
+    subplot(2,3,test_band)
+    set(gca, 'LooseInset', get(gca,'TightInset'))
+    surf(x,y,v);
+    view(3)
+    axis tight
+    
+    colormap('parula')
+    
+    xlabel('Distance')
+    ylabel('Mean z-score')
+    zlabel('Probability of good outcome')
+    
+    title({sprintf('Logistic regression for patient outcome on band %d',test_band),''});
+end
+
+saveas(gcf,'output/2d_logistic_regression_results.png') % save plot to output folder
+
+hold off
 
 %% Clinical hypothesis testing
 
