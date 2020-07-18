@@ -20,15 +20,19 @@ good_outcome_pts = {'HUP082','HUP086','HUP088','HUP094','HUP105','HUP106','HUP11
 
 poor_outcome_pts = {'HUP060','HUP075','HUP078','HUP112','HUP133','HUP138','HUP141','HUP158','HUP170','HUP171','HUP172','HUP188'};
 
-% place patients in a struct
+% place patients in a struct, extracting all relevant metadata
 all_patients = struct('patientID',metadata.Patient, ...
 'outcome', metadata.Outcome,'conn',cell(length(metadata.Patient),1), ...
 'coords',cell(length(metadata.Patient),1), ...
 'roi',cell(length(metadata.Patient),1), ...
 'resect',cell(length(metadata.Patient),1), ...
-'hasData',cell(length(metadata.Patient),1));
+'hasData',cell(length(metadata.Patient),1),...
+'therapy',metadata.Therapy,'implant',metadata.Implant,...
+'target',metadata.Target,'laterality',metadata.Laterality,...
+'lesion_status',metadata.Lesion_status,'age_onset',metadata.Age_onset,...
+'age_surgery',metadata.Age_surgery,'gender',metadata.Gender);
 
-% Use AAL116WM to get white matter
+% Extract atlas indices and ROIs available from atlas (here AAL116 w/WM)
 fileID = fopen('localization/AAL116_WM.txt');
 atlas_info = textscan(fileID,'%s %s %d');
 all_inds = [double(atlas_info{3})];
@@ -55,7 +59,7 @@ for k = 1:length(metadata.Patient)
         fprintf('%s: ',datapath)
         d = load(datapath);
         conn_field{k} = d.II_conn;
-        if sum(~isnan(d.II_conn(1).data),'all') == 0
+        if sum(sum(~isnan(d.II_conn(1).data))) == 0
             hasData_field{k} = false;
             fprintf('(connectivity data is all NaNs!)\n')
             movefile(folderpath,'data/exclude/no_conn_data')
@@ -104,7 +108,7 @@ end
 
 fprintf('\nRegion list loaded.\n')
 
-%% Figure 1A: construct adjacency matrix of all good outcome patients
+%% Figure 1A: Calculate atlas
 % initializing cell arrays
 good_mean_conn = cell(1,5);
 good_std_conn = cell(1,5);
@@ -136,7 +140,8 @@ for f = 1:5
     saveas(fig,save_name) % save plot to output folder
 end
 
-% visualize number of patients with each connection
+
+%% Figure 1B: visualize number of patients with each connection
 figure(1);clf
 fig = gcf;
 set(fig,'defaultAxesTickLabelInterpreter','none'); 
@@ -152,59 +157,10 @@ title(sprintf('Sample sizes for each edge in non-resected regions of good outcom
 save_name = sprintf('output/non_resected_good_outcome_sample_sizes.png');
 saveas(fig,save_name) % save plot to output folder
 
-%% Figure 1B: render all electrodes used and modules of brain ROI (get rid of regions w/o elecs)
-% store all electrodes here
-all_elecs = [];
-
-% loop through all patients
-for k = 1:length(metadata.Patient)
-    
-    % check whether they are good outcome and have data (thus in atlas)
-    if all_patients(k).hasData && strcmp(all_patients(k).outcome,'good')
-        
-        % extract coordinates
-        pt_elecs = all_patients(k).coords;
-        
-        % get rid of resected electrodes
-        pt_elecs(all_patients(k).resect,:) = [];
-        
-        % assign into structure
-        all_elecs = [all_elecs;pt_elecs];
-        
-       
-    end
-end
-
-[~, all_elec_roi, ~] = nifti_values(all_elecs,'localization/AAL116_WM.nii');
-
-% all tests will be run on this band
-test_band = 3;
-
-% minimum sample size required for calculated edges to be considered
-test_threshold = 3;
-
-% run all patients in atlas
-cond = [hasData_field{:}];
-[mean_conn, std_conn, all_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, test_band, test_threshold);
-
-% run all good outcome patients in atlas
-cond = [hasData_field{:}] & strcmp(outcome_field,'good');
-[good_mean_conn, good_std_conn, good_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, test_band, test_threshold);
-
-% run all poor outcome patients in atlas
-cond = [hasData_field{:}] & strcmp(outcome_field,'poor');
-[poor_mean_conn, poor_std_conn, poor_samples] = create_atlas(conn_field(cond), roi_field(cond), ...
-resect_field(cond), region_list, test_band, test_threshold);
-
-unused_elecs = [find(all_elec_roi==0),find(all_elec_roi>9000)];
-
-all_elecs(unused_elecs,:) = [];
-final_elec_matrix = [all_elecs,-1*ones(size(all_elecs,1),1),ones(size(all_elecs,1),1)];
-dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
-save('output/atlas.edge','good_mean_conn','-ascii');
-BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','output/atlas.edge','final_render.mat','output/elecs.jpg')
+%%
+%dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
+%save('output/atlas.edge','good_mean_conn','-ascii');
+%BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','output/atlas.edge','final_render.mat','output/elecs.jpg')
 %% Figure 2A: cross - validate out-of-bag predictions on good outcome patients
 % plot atlas of non-resected regions in good-outcome patients
 % fig = figure;
