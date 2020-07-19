@@ -30,7 +30,8 @@ all_patients = struct('patientID',metadata.Patient, ...
 'therapy',metadata.Therapy,'implant',metadata.Implant,...
 'target',metadata.Target,'laterality',metadata.Laterality,...
 'lesion_status',metadata.Lesion_status,'age_onset',metadata.Age_onset,...
-'age_surgery',metadata.Age_surgery,'gender',metadata.Gender);
+'age_surgery',metadata.Age_surgery,'gender',metadata.Gender,...
+'hypothesis_1',metadata.Hypothesis_1,'hypothesis_2',metadata.Hypothesis_2);
 
 % Extract atlas indices and ROIs available from atlas (here AAL116 w/WM)
 fileID = fopen('localization/AAL116_WM.txt');
@@ -610,6 +611,16 @@ bilateral_pt_indices = find([hasData_field{:}] & strcmp(therapy_field,'RNS'));
 num_bilateral_pts = length(bilateral_pt_indices);
 bilateral_z_score_results = cell(num_bilateral_pts,1);
 
+% define checkerboard matrices for extracting inter/intra hemispheric
+% connections (odd-odd and even-even conns are intra, odd-even and even-odd conns are inter)
+inter_hemisphere_conns = zeros(91*91,1); inter_hemisphere_conns(1:2:end) = 1;
+inter_hemisphere_conns = reshape(inter_hemisphere_conns,[91,91]);
+inter_hemisphere_conns(end,:) = []; inter_hemisphere_conns(:,end) = [];
+
+intra_hemisphere_conns = zeros(91*91,1); intra_hemisphere_conns(2:2:end) = 1;
+intra_hemisphere_conns = reshape(intra_hemisphere_conns,[91,91]);
+intra_hemisphere_conns(end,:) = []; intra_hemisphere_conns(:,end) = [];
+
 for test_band = 1:5
     for s = 1:length(bilateral_pt_indices)
         test_patient = all_patients(bilateral_pt_indices(s));
@@ -623,36 +634,50 @@ for test_band = 1:5
          % test atlas
          bilateral_z_score_results{s} = test_patient_conn(good_mean_conn{test_band}, good_std_conn{test_band}, region_list, patient_conn, patient_roi);
          
-         interhemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(a)));
-         intrahemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(b)));
+         interhemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(inter_hemisphere_conns)));
+         intrahemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(intra_hemisphere_conns)));
     end
 end
 
-%%
+%% Clinical hypothesis testing
+% here we will simulate how the atlas could be used in a prospective manner
 
-a = zeros(91*91,1);
-a(1:2:end) = 1;
-a = reshape(a,[91,91]);
-a(end,:) = [];
-a(:,end) = [];
+patient_hypothesis_list = {'HUP116','HUP117','HUP130','HUP138','HUP139','HUP140',...
+                           'HUP141','HUP150','HUP157','HUP164','HUP165',...
+                           'HUP171','HUP185','HUP188'};
+                       
+lobar_data = readtable('localization/lobes_aal.xlsx');
 
-b = zeros(91*91,1);
-b(2:2:end) = 1;
-b = reshape(b,[91,91]);
-b(end,:) = [];
-b(:,end) = [];
+for s = 1:length(patient_hypothesis_list)
+    % get test patient
+    test_pt_ind = find(strcmp(id_field,test_patient_hypothesis_list{s}));
+    test_patient = all_patients(test_pt_ind);
 
+     % get connectivity atlas of test patient
+     [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
 
-% part 2
-% assemble set of good outcome patients that had temporal / extratemporal
-% hypotheses and test whether connections abnormal within  / between these
-% regions
+     % get non-resected region labels of test patient
+     [~, patient_roi, ~] = nifti_values(test_patient.coords,'localization/AAL116_WM.nii');
 
-% part 3
-% assemble set of mesial / lateral temporal patients and test whether 
+     % test atlas
+     bilateral_z_score_results{s} = test_patient_conn(good_mean_conn{test_band}, good_std_conn{test_band}, region_list, patient_conn, patient_roi);
 
-%%
+    % step 2 extract z scores of ROIs within primary/secondary hypothesis
+    % regions and scores from each region to all other regions
+    primary_hypothesis = test_patient.hypothesis_1;
+    secondary_hypothesis = test_patient.hypothesis_2;
+    %true_resection = strcat(strcat(test_patient.laterality,'_'), test_patient.target);
+    
+    % find which ROI are contained in primary hypothesis
+    ROI_primary = contains(lobar_data{:,3},primary_hypothesis)
+    ROI_secondary = contains(lobar_data{:,3},secondary_hypothesis)
+    
+    % find which ROI are contained in secondary hypothesis
 
-%% algorithm
+    % step 3 generate rendering of brain with primary/secondary regions labeled 
+    % by colored nodes and all edge weights rendered
 
-%% Figure 4B: localize in poor outcome patients
+    % step 4 plot boxplot of z scores for each of the four classes: in-in
+    % primary, in-out primary, in-in secondary, in-out secondary
+
+end
