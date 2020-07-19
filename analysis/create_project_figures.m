@@ -48,6 +48,7 @@ outcome_field = {all_patients.outcome};
 hasData_field = {all_patients.hasData};
 therapy_field = {all_patients.therapy};
 implant_field = {all_patients.implant};
+target_field = {all_patients.target};
 
 % if true, the script will automatically move problematic data to another
 % directory
@@ -70,7 +71,12 @@ for k = 1:length(metadata.Patient)
             hasData_field{k} = true;
         end
         coords_field{k} = d.mni_coords;
-        resect_field{k} = d.res_elec_inds;
+        
+        try
+            resect_field{k} = d.res_elec_inds;
+        catch Error
+            resect_field{k} = [];
+        end
         % convert all electrode coordinates to region names
         try
             [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
@@ -147,6 +153,7 @@ for f = 1:5
     %saveas(fig,save_name) % save plot to output folder
 end
 
+save('output/good_outcome_pt_atlas.mat','good_mean_conn','good_std_conn')
 
 %% Figure 1B: visualize number of patients with each connection
 figure(1);clf
@@ -599,6 +606,42 @@ hold off
 % assemble set of bilateral (RNS) patients, and test whether they have
 % higher inter-hemispheric z scores compared to unilateral good outcome
 % patients
+bilateral_pt_indices = find([hasData_field{:}] & strcmp(therapy_field,'RNS'));
+num_bilateral_pts = length(bilateral_pt_indices);
+bilateral_z_score_results = cell(num_bilateral_pts,1);
+
+for test_band = 1:5
+    for s = 1:length(bilateral_pt_indices)
+        test_patient = all_patients(bilateral_pt_indices(s));
+
+         % get connectivity atlas of test patient
+         [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
+
+         % get non-resected region labels of test patient
+         [~, patient_roi, ~] = nifti_values(test_patient.coords,'localization/AAL116_WM.nii');
+
+         % test atlas
+         bilateral_z_score_results{s} = test_patient_conn(good_mean_conn{test_band}, good_std_conn{test_band}, region_list, patient_conn, patient_roi);
+         
+         interhemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(a)));
+         intrahemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(b)));
+    end
+end
+
+%%
+
+a = zeros(91*91,1);
+a(1:2:end) = 1;
+a = reshape(a,[91,91]);
+a(end,:) = [];
+a(:,end) = [];
+
+b = zeros(91*91,1);
+b(2:2:end) = 1;
+b = reshape(b,[91,91]);
+b(end,:) = [];
+b(:,end) = [];
+
 
 % part 2
 % assemble set of good outcome patients that had temporal / extratemporal
