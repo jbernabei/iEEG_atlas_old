@@ -1,4 +1,4 @@
-function [dist_mat] = create_distance_matrix(all_mni, all_roi, all_resect, region_list, band)
+function [dist_mat] = create_distance_matrix(all_mni, all_roi, all_resect, region_list)
 % add function info
 %
 % Input:
@@ -8,7 +8,6 @@ function [dist_mat] = create_distance_matrix(all_mni, all_roi, all_resect, regio
 %   all_resect (cell): cell array containing patient resected electrode
 %   arrays in order
 %   region_list (double): array containing all region labels
-%   band (int): frequency band to be used
 %
 % Output:
 %   mean_mat (double): (i,j) matrix of mean distances between 

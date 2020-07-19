@@ -64,8 +64,12 @@ for p = 1:num_patients
     end
 
     % calculate logical with resected indices
-    resect_boolean = cat(2,accumarray(res_elec_inds,1).',...
-    zeros(1,length(patient_electrode_regions)-max(res_elec_inds)));
+    try
+        resect_boolean = cat(2,accumarray(res_elec_inds,1).',...
+        zeros(1,length(patient_electrode_regions)-max(res_elec_inds)));
+    catch any_error
+        resect_boolean = zeros(1,length(patient_electrode_regions));
+    end
 
     % get connection strengths between each pair of electrodes
     adj_matrix = all_conn{p};
