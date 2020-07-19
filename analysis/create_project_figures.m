@@ -29,8 +29,8 @@ all_patients = struct('patientID',metadata.Patient, ...
 'hasData',cell(length(metadata.Patient),1),...
 'therapy',metadata.Therapy,'implant',metadata.Implant,...
 'target',metadata.Target,'laterality',metadata.Laterality,...
-'lesion_status',metadata.Lesion_status,'age_onset',metadata.Age_onset,...
-'age_surgery',metadata.Age_surgery,'gender',metadata.Gender);
+'lesion_status',metadata.Lesion_status,'age_onset',num2cell(metadata.Age_onset),...
+'age_surgery',num2cell(metadata.Age_surgery),'gender',metadata.Gender);
 
 % Extract atlas indices and ROIs available from atlas (here AAL116 w/WM)
 fileID = fopen('localization/AAL116_WM.txt');
@@ -70,7 +70,11 @@ for k = 1:length(metadata.Patient)
             hasData_field{k} = true;
         end
         coords_field{k} = d.mni_coords;
-        resect_field{k} = d.res_elec_inds;
+        try
+            resect_field{k} = d.res_elec_inds;
+        catch Error
+            resect_field{k} = [];
+        end
         % convert all electrode coordinates to region names
         try
             [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
@@ -107,6 +111,68 @@ for j = 1:90
 end
 
 fprintf('\nRegion list loaded.\n')
+
+%% generate csv file with patient demographics
+
+% get patients who have data
+study_patients = all_patients([hasData_field{:}]);
+good_patients = study_patients(strcmp({study_patients.outcome},'good'));
+poor_patients = study_patients(strcmp({study_patients.outcome},'poor'));
+
+% create output table
+row_names = {'Total number of subjects','Age at surgery','Mean ± SD', ...
+    'Sex','Male','Female','Resected/ablated region','LTL','RTL', ...
+    'LFL/LPL/LFPL','RFL/RFTL/RFPL','MRI','Lesional','Non-lesional', ...
+    'Unknown','Therapy','Ablation','Resection'};
+
+% dictionary for target lobe names
+target_map = containers.Map({'Frontal','Temporal','FP','Parietal', ...
+    'MTL','MFL','Insular'},{'FL/PL/FPL','TL','FL/PL/FPL','FL/PL/FPL', ...
+    'TL','FL/PL/FPL','FL/PL/FPL'});
+get_target = @(x) target_map(x);
+
+% set up table
+
+structs = {good_patients, poor_patients};
+demographic_table = cell2table(cell(length(row_names),length(structs)));
+for b = 1:length(structs)
+    patients = structs{b};
+    targets = cellfun(get_target,{patients.target},'UniformOutput',false);
+    targets_and_lateralities = join([{patients.laterality}.',targets.'],2);
+    target_counts = countcats(categorical(targets_and_lateralities));
+    gender_counts = countcats(categorical({patients.gender}));
+    lesion_counts = countcats(categorical({patients.lesion_status}));
+    therapy_counts = countcats(categorical({patients.therapy}));
+    data_column = cell(length(row_names),1);
+    % Total number of subjects
+    data_column{1} = length(patients);
+    % Age at surgery
+    data_column{3} = sprintf('%.5f ± %.5f',nanmean([patients.age_surgery]),nanstd([patients.age_surgery]));
+    % Sex
+    data_column{5} = gender_counts(2);
+    data_column{6} = gender_counts(1);
+    % Resected/ablated region
+    data_column{8} = target_counts(2);
+    data_column{9} = target_counts(4);
+    data_column{10} = target_counts(1);
+    data_column{11} = target_counts(3);
+    % MRI
+    data_column{13} = lesion_counts(1);
+    data_column{14} = lesion_counts(2);
+    data_column{15} = length(patients)-lesion_counts(1)-lesion_counts(2);
+    % Therapy
+    data_column{17} = therapy_counts(1);
+    data_column{18} = therapy_counts(2);
+    
+    demographic_table(:,b) = data_column;
+end
+
+demographic_table.Properties.RowNames = row_names;
+demographic_table.Properties.VariableNames = {'Good surgical outcome','Poor surgical outcome'};
+
+writetable(demographic_table,'output/patient_demographics.xls','WriteRowNames',true)
+
+fprintf('Demographic table saved.\n')
 
 %% Figure 1A: construct adjacency matrix of all good outcome patients
 
@@ -235,6 +301,7 @@ good_resected_z_score_results = cell(num_good_patients,1);
 
 % to hold logistic regression results
 mnr_results = cell(5,3);
+mdl_results = cell(5,1);
 
 set(0,'units','inches')
 screen_dims = get(0,'ScreenSize');
@@ -497,6 +564,9 @@ for test_band = 1:5
     % perform logistic regression
     [B,dev,stats] = mnrfit(predictors,outcomes.','Model','hierarchical');
     mnr_results(test_band,:) = {B,dev,stats};
+    
+    mdl = fitglm(predictors,outcomes,'Distribution','binomial','Link','logit');
+    mdl_results(test_band) = {mdl};
 end
 fprintf('\n')
 
@@ -511,6 +581,7 @@ fig = figure;
 fig.WindowState = 'maximized';
 hold on
 
+% plot 3d volume
 for test_band = 1:5
     coeffs = mnr_results{test_band,1};
     f = @(x,y,z) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y)+(coeffs(4)*z))));
@@ -568,6 +639,7 @@ fig = figure;
 fig.WindowState = 'maximized';
 hold on
 
+% plot 3d surface
 for test_band = 1:5
     coeffs = mnr_results{test_band,1};
     f = @(x,y) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y))));
@@ -590,6 +662,35 @@ for test_band = 1:5
 end
 
 saveas(gcf,'output/2d_logistic_regression_results.png') % save plot to output folder
+
+hold off
+
+fig = figure;
+fig.WindowState = 'maximized';
+
+format long
+
+% plot ROC curves
+for test_band = 1:5
+    subplot(2,3,test_band)
+    results = mdl_results{test_band};
+    scores = results.Fitted.Probability;
+    [X,Y,T,AUC] = perfcurve(outcomes,scores,'good');
+    %fprintf('Band %d:\nArea under curve = %16.f\n',test_band,AUC);
+    
+    subplot(2,3,test_band)
+    plot(X,Y)
+    x = 0:0.1:1;
+    y = x;
+    hold on
+    plot(x,y)
+    xlabel('False positive rate') 
+    ylabel('True positive rate')
+    text(0.4,0.1,sprintf('Area under curve = %.5f',AUC));
+    title({sprintf('ROC for Classification by Logistic Regression (band %d)',test_band),''})
+end
+
+saveas(gcf,'output/roc_results.png') % save plot to output folder
 
 hold off
 
