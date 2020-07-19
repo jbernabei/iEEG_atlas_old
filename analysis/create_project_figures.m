@@ -50,9 +50,9 @@ therapy_field = {all_patients.therapy};
 implant_field = {all_patients.implant};
 target_field = {all_patients.target};
 
-% functions to help convert mni coordinates to regions of interest
-%f = @nifti_values;
-%g = @(x) f(x,'localization/AAL116_WM.nii');
+% if true, the script will automatically move problematic data to another
+% directory
+move_files = false;
 
 % load in data from all patients
 for k = 1:length(metadata.Patient)
@@ -65,7 +65,7 @@ for k = 1:length(metadata.Patient)
         if sum(sum(~isnan(d.II_conn(1).data))) == 0
             hasData_field{k} = false;
             fprintf('(connectivity data is all NaNs!)\n')
-            movefile(folderpath,'data/exclude/no_conn_data')
+            if move_files, movefile(folderpath,'data/exclude/no_conn_data'); end
             continue
         else
             hasData_field{k} = true;
@@ -79,8 +79,6 @@ for k = 1:length(metadata.Patient)
         end
         % convert all electrode coordinates to region names
         try
-            %[~,electrode_regions,~] = cellfun(g, coords_field(k), 'UniformOutput',false);
-            %roi_field{k} = electrode_regions{1};
             [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
             roi_field{k} = electrode_regions;
             fprintf('loaded\n')
@@ -88,7 +86,7 @@ for k = 1:length(metadata.Patient)
             fprintf('failed to load\n')
             warning('Problem converting MNI coordinates to region labels\n(%s)',datapath, ME.identifier)
             hasData_field{k} = false;
-            movefile(folderpath,'data/exclude/out_of_bound_electrodes')
+            if move_files, movefile(folderpath,'data/exclude/out_of_bound_electrodes'); end
         end
     else
         hasData_field{k} = false;
@@ -116,7 +114,12 @@ end
 
 fprintf('\nRegion list loaded.\n')
 
-%% Figure 1A: Calculate atlas
+%% Figure 1A: construct adjacency matrix of all good outcome patients
+
+set(0,'units','inches')
+screen_dims = get(0,'ScreenSize');
+figure_width = 10;
+
 % initializing cell arrays
 good_mean_conn = cell(1,5);
 good_std_conn = cell(1,5);
@@ -136,16 +139,18 @@ for f = 1:5
     figure(f+1);clf;
     fig = gcf;
     set(fig,'defaultAxesTickLabelInterpreter','none'); 
-    fig.WindowState = 'maximized';
+    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
     imagesc(good_mean_conn{f},'AlphaData',~isnan(good_mean_conn{f}))
+    axis(gca,'equal');
     set(gca,'color',0*[1 1 1]);
-    set(gca,'xtick',(1:90),'xticklabel',all_locs,'fontsize',6)
+    set(gca,'xtick',(1:90),'xticklabel',all_locs)
     xtickangle(45)
-    set(gca,'ytick',(1:90),'yticklabel',all_locs,'fontsize',6)
+    set(gca,'ytick',(1:90),'yticklabel',all_locs)
+    set(gca,'fontsize', 4)
     colorbar
     title(sprintf('Connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
     save_name = sprintf('output/non_resected_good_outcome_atlas_band_%d.png',test_band);
-    saveas(fig,save_name) % save plot to output folder
+    %saveas(fig,save_name) % save plot to output folder
 end
 
 save('output/good_outcome_pt_atlas.mat','good_mean_conn','good_std_conn')
@@ -154,17 +159,18 @@ save('output/good_outcome_pt_atlas.mat','good_mean_conn','good_std_conn')
 figure(1);clf
 fig = gcf;
 set(fig,'defaultAxesTickLabelInterpreter','none'); 
-fig.WindowState = 'maximized';
+set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
 imagesc(num_conn,'AlphaData',~(num_conn==0))
+axis(gca,'equal');
 set(gca,'color',0*[1 1 1]);
 set(gca,'xtick',(1:90),'xticklabel',all_locs)
 xtickangle(45)
 set(gca,'ytick',(1:90),'yticklabel',all_locs)
-set(gca,'fontsize', 6)
+set(gca,'fontsize', 4)
 colorbar
 title(sprintf('Sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
 save_name = sprintf('output/non_resected_good_outcome_sample_sizes.png');
-saveas(fig,save_name) % save plot to output folder
+%saveas(fig,save_name) % save plot to output folder
 
 %%
 %dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
@@ -233,6 +239,9 @@ poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 
 good_z_score_results = cell(num_good_patients,1);
 good_resected_z_score_results = cell(num_good_patients,1);
+
+% to hold logistic regression results
+mnr_results = cell(5,3);
 
 set(0,'units','inches')
 screen_dims = get(0,'ScreenSize');
