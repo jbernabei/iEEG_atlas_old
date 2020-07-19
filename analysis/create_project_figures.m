@@ -46,10 +46,12 @@ roi_field = {all_patients.coords};
 resect_field = {all_patients.resect};
 outcome_field = {all_patients.outcome};
 hasData_field = {all_patients.hasData};
+therapy_field = {all_patients.therapy};
+implant_field = {all_patients.implant};
 
-% functions to help convert mni coordinates to regions of interest
-%f = @nifti_values;
-%g = @(x) f(x,'localization/AAL116_WM.nii');
+% if true, the script will automatically move problematic data to another
+% directory
+move_files = false;
 
 % load in data from all patients
 for k = 1:length(metadata.Patient)
@@ -62,7 +64,7 @@ for k = 1:length(metadata.Patient)
         if sum(sum(~isnan(d.II_conn(1).data))) == 0
             hasData_field{k} = false;
             fprintf('(connectivity data is all NaNs!)\n')
-            movefile(folderpath,'data/exclude/no_conn_data')
+            if move_files, movefile(folderpath,'data/exclude/no_conn_data'); end
             continue
         else
             hasData_field{k} = true;
@@ -71,8 +73,6 @@ for k = 1:length(metadata.Patient)
         resect_field{k} = d.res_elec_inds;
         % convert all electrode coordinates to region names
         try
-            %[~,electrode_regions,~] = cellfun(g, coords_field(k), 'UniformOutput',false);
-            %roi_field{k} = electrode_regions{1};
             [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
             roi_field{k} = electrode_regions;
             fprintf('loaded\n')
@@ -80,7 +80,7 @@ for k = 1:length(metadata.Patient)
             fprintf('failed to load\n')
             warning('Problem converting MNI coordinates to region labels\n(%s)',datapath, ME.identifier)
             hasData_field{k} = false;
-            movefile(folderpath,'data/exclude/out_of_bound_electrodes')
+            if move_files, movefile(folderpath,'data/exclude/out_of_bound_electrodes'); end
         end
     else
         hasData_field{k} = false;
@@ -108,7 +108,12 @@ end
 
 fprintf('\nRegion list loaded.\n')
 
-%% Figure 1A: Calculate atlas
+%% Figure 1A: construct adjacency matrix of all good outcome patients
+
+set(0,'units','inches')
+screen_dims = get(0,'ScreenSize');
+figure_width = 10;
+
 % initializing cell arrays
 good_mean_conn = cell(1,5);
 good_std_conn = cell(1,5);
@@ -128,16 +133,18 @@ for f = 1:5
     figure(f+1);clf;
     fig = gcf;
     set(fig,'defaultAxesTickLabelInterpreter','none'); 
-    fig.WindowState = 'maximized';
+    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
     imagesc(good_mean_conn{f},'AlphaData',~isnan(good_mean_conn{f}))
+    axis(gca,'equal');
     set(gca,'color',0*[1 1 1]);
-    set(gca,'xtick',(1:90),'xticklabel',all_locs,'fontsize',6)
+    set(gca,'xtick',(1:90),'xticklabel',all_locs)
     xtickangle(45)
-    set(gca,'ytick',(1:90),'yticklabel',all_locs,'fontsize',6)
+    set(gca,'ytick',(1:90),'yticklabel',all_locs)
+    set(gca,'fontsize', 4)
     colorbar
     title(sprintf('Connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
     save_name = sprintf('output/non_resected_good_outcome_atlas_band_%d.png',test_band);
-    saveas(fig,save_name) % save plot to output folder
+    %saveas(fig,save_name) % save plot to output folder
 end
 
 
@@ -145,17 +152,18 @@ end
 figure(1);clf
 fig = gcf;
 set(fig,'defaultAxesTickLabelInterpreter','none'); 
-fig.WindowState = 'maximized';
+set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
 imagesc(num_conn,'AlphaData',~(num_conn==0))
+axis(gca,'equal');
 set(gca,'color',0*[1 1 1]);
 set(gca,'xtick',(1:90),'xticklabel',all_locs)
 xtickangle(45)
 set(gca,'ytick',(1:90),'yticklabel',all_locs)
-set(gca,'fontsize', 6)
+set(gca,'fontsize', 4)
 colorbar
 title(sprintf('Sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
 save_name = sprintf('output/non_resected_good_outcome_sample_sizes.png');
-saveas(fig,save_name) % save plot to output folder
+%saveas(fig,save_name) % save plot to output folder
 
 %%
 %dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
@@ -224,6 +232,9 @@ poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 
 good_z_score_results = cell(num_good_patients,1);
 good_resected_z_score_results = cell(num_good_patients,1);
+
+% to hold logistic regression results
+mnr_results = cell(5,3);
 
 set(0,'units','inches')
 screen_dims = get(0,'ScreenSize');
@@ -442,8 +453,145 @@ for test_band = 1:5
     fprintf('p-value = %d',p)
     if h, fprintf('*'); end
 
+    % logistic regression
+    % predictors: distance between mean resected and mean non-resected 
+    % z-scores, mean & variance of the distribution of all z scores together
+    % response: good or poor outcome
+    
+    % helper function
+    get_average_data = @(x) nanmean(x(triu(true(size(x)))));
+    
+    % get distance values for good outcome patients
+    good_distances = cell2mat(cellfun(get_average_data,good_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,good_z_score_results,'UniformOutput',false));
+    
+    % get distance values for poor outcome patients and append them
+    poor_distances = cell2mat(cellfun(get_average_data,poor_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,poor_z_score_results,'UniformOutput',false));
+    
+    % combine two arrays
+    distances = [good_distances; poor_distances];
+    
+    % get mean z-scores
+    good_means = nanmean([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
+    
+    poor_means = nanmean([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
+    
+    z_score_means = [good_means, poor_means];
+    
+    % get variance of z-scores
+    good_variances = nanvar([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
+    
+    poor_variances = nanvar([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
+    
+    z_score_variances = [good_variances, poor_variances];
+    
+    % generate array of outcomes
+    outcomes = categorical([repmat(["good"],1,length(good_patient_indices)), repmat(["poor"],1,length(poor_patient_indices))]).';
+
+    predictors = [distances,z_score_means.',z_score_variances.'];
+    
+    % remove any patients with NaN predictor values
+    good_rows = ~any(isnan(predictors),2);
+    predictors = predictors(good_rows,:);
+    outcomes = outcomes(good_rows,:);
+    
+    % perform logistic regression
+    [B,dev,stats] = mnrfit(predictors,outcomes.','Model','hierarchical');
+    mnr_results(test_band,:) = {B,dev,stats};
 end
 fprintf('\n')
+
+%% plot logistic regression results
+
+bound = 20;
+interval = 2;
+jitter = 0.5;
+marker_size = 100;
+
+fig = figure;
+fig.WindowState = 'maximized';
+hold on
+
+for test_band = 1:5
+    coeffs = mnr_results{test_band,1};
+    f = @(x,y,z) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y)+(coeffs(4)*z))));
+    [x,y,z] = ndgrid(-bound/2:interval:bound/2);
+    x = x + jitter*(rand(size(x))-0.5);
+    y = y + jitter*(rand(size(y))-0.5);
+    z = z + jitter*(rand(size(z))-0.5);
+    v = f(x,y,z);
+
+%     p1 = patch(isosurface(x,y,z,v,0.25));
+%     hold on
+%     p2 = patch(isosurface(x,y,z,v,0.5));
+%     p3 = patch(isosurface(x,y,z,v,0.75));
+%     isonormals(x,y,z,v,p1);
+%     isonormals(x,y,z,v,p2);
+%     isonormals(x,y,z,v,p3);
+%     p1.FaceColor = 'red';
+%     p2.FaceColor = 'yellow';
+%     p3.FaceColor = 'green';
+%     p1.EdgeColor = 'none';
+%     p2.EdgeColor = 'none';
+%     p3.EdgeColor = 'green';
+%     daspect([1,1,1])
+%     view(3)
+    
+    x = reshape(x,[],1); 
+    y = reshape(y,[],1);
+    z = reshape(z,[],1);
+    v = reshape(v,[],1);
+    
+    subplot(2,3,test_band)
+    set(gca, 'LooseInset', get(gca,'TightInset'))
+    scatter3(x,y,z,marker_size,v,'filled','o');
+    alpha(2*interval/bound);
+    view(3)
+    axis tight
+    
+    cb = colorbar;
+    cb.Label.String = 'Probability of good surgical outcome';
+    
+    colormap('parula')
+    
+    xlabel('Distance')
+    ylabel('Mean z-score')
+    zlabel('Variance of z-scores')
+    
+    title({sprintf('Logistic regression for patient outcome on band %d',test_band),''});
+end
+
+saveas(gcf,'output/3d_logistic_regression_results.png') % save plot to output folder
+
+hold off
+
+fig = figure;
+fig.WindowState = 'maximized';
+hold on
+
+for test_band = 1:5
+    coeffs = mnr_results{test_band,1};
+    f = @(x,y) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y))));
+    [x,y] = ndgrid(-bound/2:interval/2:bound/2);
+    v = f(x,y);
+    
+    subplot(2,3,test_band)
+    set(gca, 'LooseInset', get(gca,'TightInset'))
+    surf(x,y,v);
+    view(3)
+    axis tight
+    
+    colormap('parula')
+    
+    xlabel('Distance')
+    ylabel('Mean z-score')
+    zlabel('Probability of good outcome')
+    
+    title({sprintf('Logistic regression for patient outcome on band %d',test_band),''});
+end
+
+saveas(gcf,'output/2d_logistic_regression_results.png') % save plot to output folder
+
+hold off
 
 %% Clinical hypothesis testing
 
