@@ -586,9 +586,9 @@ fprintf('\n')
 %% plot logistic regression results
 
 bound = 20;
-interval = 2;
-jitter = 0.5;
-marker_size = 100;
+interval = 2.5;
+jitter = 0.8;
+marker_size = 80;
 
 fig = figure;
 fig.WindowState = 'maximized';

@@ -10,7 +10,7 @@ function [dist_mat] = create_distance_matrix(all_mni, all_roi, all_resect, regio
 %   region_list (double): array containing all region labels
 %
 % Output:
-%   mean_mat (double): (i,j) matrix of mean distances between 
+%   dist_mat (double): (i,j) matrix of mean distances between 
 %   region_list(i) and region_list(j)
 %
 % John Bernabei and Ian Ong
