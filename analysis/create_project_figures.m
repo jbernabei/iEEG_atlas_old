@@ -335,7 +335,7 @@ for test_band = 1:5
 
         % get connectivity atlas of test patient
         [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
-
+        
         % get non-resected region labels of test patient
         [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
 
@@ -749,14 +749,14 @@ end
 % here we will simulate how the atlas could be used in a prospective manner
 
 patient_hypothesis_list = {'HUP116','HUP117','HUP130','HUP138','HUP139','HUP140',...
-                           'HUP141','HUP150','HUP157','HUP164','HUP165',...
+                           'HUP141','HUP157','HUP164','HUP165',...
                            'HUP171','HUP185','HUP188'};
                        
 lobar_data = readtable('localization/lobes_aal.xlsx');
 
 for s = 1:length(patient_hypothesis_list)
     % get test patient
-    test_pt_ind = find(strcmp(id_field,test_patient_hypothesis_list{s}));
+    test_pt_ind = find(strcmp(id_field,patient_hypothesis_list{s}));
     test_patient = all_patients(test_pt_ind);
 
      % get connectivity atlas of test patient
@@ -766,7 +766,7 @@ for s = 1:length(patient_hypothesis_list)
      [~, patient_roi, ~] = nifti_values(test_patient.coords,'localization/AAL116_WM.nii');
 
      % test atlas
-     bilateral_z_score_results{s} = test_patient_conn(good_mean_conn{test_band}, good_std_conn{test_band}, region_list, patient_conn, patient_roi);
+     test_z_score_results{s} = test_patient_conn(good_mean_conn{test_band}, good_std_conn{test_band}, region_list, patient_conn, patient_roi);
 
     % step 2 extract z scores of ROIs within primary/secondary hypothesis
     % regions and scores from each region to all other regions
@@ -774,16 +774,85 @@ for s = 1:length(patient_hypothesis_list)
     secondary_hypothesis = test_patient.hypothesis_2;
     %true_resection = strcat(strcat(test_patient.laterality,'_'), test_patient.target);
     
-    % find which ROI are contained in primary hypothesis
-    ROI_primary = contains(lobar_data{:,3},primary_hypothesis)
-    ROI_secondary = contains(lobar_data{:,3},secondary_hypothesis)
+    % find which ROI are contained in primary and secondary hypothesis
+    ROI_primary = contains(lobar_data{:,3},primary_hypothesis);
+    ROI_secondary = contains(lobar_data{:,3},secondary_hypothesis);
+   
+    % in-in primary
+    in_in_1 = test_z_score_results{s}(ROI_primary,ROI_primary);
     
-    % find which ROI are contained in secondary hypothesis
-
+    % in-out primary
+    in_out_1 = test_z_score_results{s}(ROI_primary,setdiff([1:90],ROI_primary));
+    
+    % in-in secondary
+    in_in_2 = test_z_score_results{s}(ROI_secondary,ROI_secondary);
+    
+    % in-out secondary
+    in_out_2 = test_z_score_results{s}(ROI_primary,setdiff([1:90],ROI_secondary));
+    
+    % out-out
+    out_out = test_z_score_results{s}(setdiff([1:90],[ROI_primary,ROI_secondary]),setdiff([1:90],[ROI_primary,ROI_secondary]));
+    
     % step 3 generate rendering of brain with primary/secondary regions labeled 
     % by colored nodes and all edge weights rendered
+    
+    [atlas_mni] = create_distance_matrix({test_patient.coords}, region_list);
+    
+    node_color = zeros(90,1);
+    node_color(ROI_primary,1) = -1; % sets to blue
+    node_color(ROI_secondary,1) = 1; % sets to red
+    
+    % create final electrode matrix
+    final_elec_matrix = [atlas_mni, node_color, ones(90,1)];
+    
+    unsampled_roi = find(isnan(final_elec_matrix(:,1)));
+    
+    final_elec_matrix(unsampled_roi,:) = [];
+    
+    % get rid of unsampled regions
+    test_z_score_results{s}(unsampled_roi,:) = [];
+    test_z_score_results{s}(:,unsampled_roi) = [];
+    
+    % zero out any NaNs
+    test_z_score_results{s}(find(isnan(test_z_score_results{s}))) = 0;
+    
+    z_score_results = test_z_score_results{s};
+    
+    dlmwrite('output/hypothesis_test.node',final_elec_matrix,'delimiter',' ','precision',5)
+    save('output/hypothesis_test.edge','z_score_results','-ascii');
+    BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/hypothesis_test.node','output/hypothesis_test.edge','output/hypothesis_test_options.mat',sprintf('output/hypothesis_test_%s.jpg',patient_hypothesis_list{s}))
 
     % step 4 plot boxplot of z scores for each of the four classes: in-in
     % primary, in-out primary, in-in secondary, in-out secondary
+    
+    boxplot_data = NaN.*zeros(90*90,5);
+    plot_labels = {'IN-IN Region 1','IN-OUT Region 1','IN-IN Region 2','IN-OUT Region 2','OUT-OUT'};
+    
+    boxplot_data(1:length(in_in_1(:)),1) = in_in_1(:);
+    boxplot_data(1:length(in_out_1(:)),2) = in_out_1(:);
+    boxplot_data(1:length(in_in_2(:)),3) = in_in_2(:);
+    boxplot_data(1:length(in_out_2(:)),4) = in_out_2(:); 
+    boxplot_data(1:length(out_out(:)),5) = out_out(:);
+    
+    % create boxplot
+    figure(s);clf;
+    boxplot(boxplot_data,'labels',plot_labels)
+    
+    % calculate p values
+    for h = 1:5
+        for y = 1:5
+            hypothesis_p_val(h,y) = ranksum(boxplot_data(:,h),boxplot_data(:,y));
+        end
+    end
 
 end
+%% algorithm for identifying targets from full patient connectivity
+% across frequency bands. Use dice score for localization quality
+
+% apply in good outcome patients
+
+% apply in poor outcome patients
+
+% quantify and compare results
+
+
