@@ -31,7 +31,8 @@ all_patients = struct('patientID',metadata.Patient, ...
 'target',metadata.Target,'laterality',metadata.Laterality,...
 'lesion_status',metadata.Lesion_status,'age_onset',metadata.Age_onset,...
 'age_surgery',metadata.Age_surgery,'gender',metadata.Gender,...
-'hypothesis_1',metadata.Hypothesis_1,'hypothesis_2',metadata.Hypothesis_2);
+'hypothesis_1',metadata.Hypothesis_1,'hypothesis_2',metadata.Hypothesis_2, ...
+'z_scores',repmat({repmat(struct('data',struct('non_resected',[],'resected',[])),1,5)},length(metadata.Patient),1));
 
 % Extract atlas indices and ROIs available from atlas (here AAL116 w/WM)
 fileID = fopen('localization/AAL116_WM.txt');
@@ -222,7 +223,7 @@ for f = 1:5
     colorbar
     title(sprintf('Connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
     save_name = sprintf('output/non_resected_good_outcome_atlas_band_%d.png',test_band);
-    %saveas(fig,save_name) % save plot to output folder
+    saveas(fig,save_name) % save plot to output folder
 end
 
 save('output/good_outcome_pt_atlas.mat','good_mean_conn','good_std_conn')
@@ -241,8 +242,8 @@ set(gca,'ytick',(1:90),'yticklabel',all_locs)
 set(gca,'fontsize', 4)
 colorbar
 title(sprintf('Sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
-save_name = sprintf('output/non_resected_good_outcome_sample_sizes.png');
-%saveas(fig,save_name) % save plot to output folder
+save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_sample_sizes.png');
+saveas(fig,save_name) % save plot to output folder
 
 %%
 %dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
@@ -347,7 +348,11 @@ for test_band = 1:5
 
         % test atlas
         good_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-    
+        
+        % place results into all_patients
+        all_patients(s).z_scores(test_band).data.non_resected = good_z_score_results{s};
+        all_patients(s).z_scores(test_band).data.resected = good_resected_z_score_results{s};
+        
         fprintf(repmat('\b',1,line_length))
         
     end
@@ -387,6 +392,10 @@ for test_band = 1:5
 
         % test atlas
         poor_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
+        
+        % place results into all_patients
+        all_patients(s).z_scores(test_band).data.non_resected = poor_z_score_results{s};
+        all_patients(s).z_scores(test_band).data.resected = poor_resected_z_score_results{s};
         
         fprintf(repmat('\b',1,line_length))
         
@@ -583,11 +592,97 @@ for test_band = 1:5
 end
 fprintf('\n')
 
+%% saving z-scores and z-score histograms on an individual basis
+fprintf('\n')
+
+% exclude RNS patients
+cond = [hasData_field{:}] & (strcmp(outcome_field,'good') | strcmp(outcome_field,'poor'));
+
+all_outcome_patients = all_patients(cond);
+
+counter = 0;
+
+for k = 1:length(all_outcome_patients)
+    % save z-score data to a .mat file
+    dat = all_outcome_patients(k).z_scores;
+    patientID = all_outcome_patients(k).patientID;
+    
+    line_length = fprintf('Generating plots for %s...', patientID);
+    
+    % create folder for the patient if one does not exist
+    if ~exist(sprintf('output/patient_specific/%s',patientID), 'dir')
+       mkdir(sprintf('output/patient_specific/%s',patientID))
+    end
+    
+    save(sprintf('output/patient_specific/%s/%s_z_scores.mat',patientID,patientID),'dat')
+    
+    % generate figure with a z-score histogram for each band
+    fig = figure;
+    fig.WindowState = 'maximized';
+    get_triu_data = @(x) x(triu(true(size(x))));
+    bin_width = 0.2;
+    
+    for test_band = 1:5
+        subplot(2,3,test_band)
+        
+        non_resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.non_resected);
+        resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.resected);
+
+        % remove NaN values
+        non_resected_scores = non_resected_scores(~isnan(non_resected_scores) & ~isinf(non_resected_scores));
+        resected_scores = resected_scores(~isnan(resected_scores) & ~isinf(resected_scores));
+        
+        % default p-value to display
+        p = NaN;
+        % test fails by default
+        h = 0;
+        % get Mann-Whitney p-value
+        if ~(isempty(non_resected_scores) || isempty(resected_scores)), [p,h] = ranksum(non_resected_scores,resected_scores,'Alpha',0.05); end
+        legend_entries = {};
+        if ~isempty(non_resected_scores)
+            histogram(non_resected_scores,'Normalization','probability','BinWidth',bin_width);
+            xline(mean(non_resected_scores),'b','LineWidth',2);
+            legend_entries = {sprintf('Non-resected regions (n=%d)',length(non_resected_scores)),'Non-resected mean'};
+        end
+        if ~isempty(resected_scores)
+            hold on
+            histogram(resected_scores,'Normalization','probability','BinWidth',bin_width);
+            xline(mean(resected_scores),'r','LineWidth',2);
+            legend_entries = [legend_entries,{sprintf('Resected regions (n=%d)',length(resected_scores)),'Resected mean'}];
+        end
+        title({sprintf('Band %d, p = %.5f%s',test_band,p,char(42*h)),''})
+        ylabel('Density')
+        xlabel('Z-score')
+        if ~isempty(legend_entries), legend(legend_entries); end
+        legend('Location','northeast','Box','off')
+        hold off
+    end
+    sgtitle({sprintf('%s: z-scores of connectivity strengths by band',patientID),''})
+    saveas(gcf,sprintf('output/patient_specific/%s/%s_z_score_histograms.png',patientID,patientID)) % save plot to output folder
+    close all
+    
+    if isempty(non_resected_scores)
+        fprintf(' (no non-resected z-scores)')
+    end
+    
+    if isempty(resected_scores)
+        fprintf(' (no resected z-scores)')
+    end
+    
+    if ~(isempty(resected_scores) || isempty(non_resected_scores))
+        fprintf(repmat('\b',1,line_length))
+    else
+        fprintf('\n')
+        counter = counter + 1;
+    end
+end
+
+fprintf('Total number of patients with missing data: %d\n',counter)
 %% plot logistic regression results
 
-bound = 20;
-interval = 2.5;
-jitter = 0.8;
+bound = 30;
+interval = 5;
+jitter = 1;
 marker_size = 80;
 
 fig = figure;
@@ -598,7 +693,7 @@ hold on
 for test_band = 1:5
     coeffs = mnr_results{test_band,1};
     f = @(x,y,z) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y)+(coeffs(4)*z))));
-    [x,y,z] = ndgrid(-bound/2:interval:bound/2);
+    [x,y,z] = ndgrid(-bound/2:interval:bound/2,-bound/2:interval:bound/2,interval:bound);
     x = x + jitter*(rand(size(x))-0.5);
     y = y + jitter*(rand(size(y))-0.5);
     z = z + jitter*(rand(size(z))-0.5);
