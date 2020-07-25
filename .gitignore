@@ -13,9 +13,10 @@
 
 ### Other ###
 # output images/files
-*.png
-*.jpg
-*.jpeg
+output/*.png
+output/z_scores/*.png
+output/*.jpg
+output/*.jpeg
 *.node
 *.edge
 
