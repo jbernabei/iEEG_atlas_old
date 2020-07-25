@@ -329,7 +329,7 @@ for test_band = 1:5
         cv_patients = all_patients(good_patient_indices);
         cv_patients(s) = [];
 
-        line_length = fprintf('Testing good outcome patient %d of %d...', s, length(good_patient_indices));
+        line_length = fprintf('Testing %s...', test_patient.patientID);
 
         % get connectivity atlas of excluded patients
         [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
@@ -350,8 +350,8 @@ for test_band = 1:5
         good_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
         
         % place results into all_patients
-        all_patients(s).z_scores(test_band).data.non_resected = good_z_score_results{s};
-        all_patients(s).z_scores(test_band).data.resected = good_resected_z_score_results{s};
+        all_patients(good_patient_indices(s)).z_scores(test_band).data.non_resected = good_z_score_results{s};
+        all_patients(good_patient_indices(s)).z_scores(test_band).data.resected = good_resected_z_score_results{s};
         
         fprintf(repmat('\b',1,line_length))
         
@@ -376,7 +376,7 @@ for test_band = 1:5
     for s = 1:length(poor_patient_indices)
         test_patient = all_patients(poor_patient_indices(s));
 
-        line_length = fprintf('Testing poor outcome patient %d of %d...', s, length(poor_patient_indices));
+        line_length = fprintf('Testing %s...', test_patient.patientID);
 
         % get connectivity atlas of test patient
         [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
@@ -394,8 +394,8 @@ for test_band = 1:5
         poor_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
         
         % place results into all_patients
-        all_patients(s).z_scores(test_band).data.non_resected = poor_z_score_results{s};
-        all_patients(s).z_scores(test_band).data.resected = poor_resected_z_score_results{s};
+        all_patients(poor_patient_indices(s)).z_scores(test_band).data.non_resected = poor_z_score_results{s};
+        all_patients(poor_patient_indices(s)).z_scores(test_band).data.resected = poor_resected_z_score_results{s};
         
         fprintf(repmat('\b',1,line_length))
         
@@ -657,7 +657,7 @@ for k = 1:length(all_outcome_patients)
         legend('Location','northeast','Box','off')
         hold off
     end
-    sgtitle({sprintf('%s: z-scores of connectivity strengths by band',patientID),''})
+    sgtitle({sprintf('%s: z-scores of connectivity strengths by band',patientID),sprintf('Surgical outcome: %s',all_outcome_patients(k).outcome),sprintf('Targeted region: %s',all_outcome_patients(k).target)},'FontSize',10)
     saveas(gcf,sprintf('output/patient_specific/%s/%s_z_score_histograms.png',patientID,patientID)) % save plot to output folder
     close all
     
