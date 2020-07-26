@@ -118,6 +118,13 @@ end
 
 fprintf('\nRegion list loaded.\n')
 
+% remove some variables from memory
+vars = {'all_inds','atlas_info','d','datapath','electrode_regions', ...
+    'Error','fi','fileID','folderpath','j','k','label','metadata', ...
+    'move_files'};
+clear(vars{:})
+clear('vars')
+
 %% generate csv file with patient demographics
 
 % get patients who have data
@@ -594,6 +601,17 @@ for test_band = 1:5
 end
 fprintf('\n')
 
+% remove some variables from memory
+vars = {'B','get_average_data','good_distances','good_means', ...
+    'good_plot_data','good_resected_plot_data','good_resected_z_score_mean', ...
+    'good_rows','good_variances','good_z_score_mean','h','line_length' ...
+    'mdl','outcomes','p','poor_distances','poor_means','poor_plot_data', ...
+    'poor_resected_plot_data','poor_resected_z_score_mean','poor_variances' ...
+    'poor_z_score_mean','predictors','s','save_name','screen_dims', ...
+    'stats','test_band','test_threshold','z_score_means','z_score_variances'};
+clear(vars{:})
+clear('vars')
+
 %% saving z-scores and z-score histograms on an individual basis
 fprintf('\n')
 
@@ -734,8 +752,6 @@ end
 
 alpha = 0.05;
 
-colormap(flip(parula(40)))
-
 set(0,'units','inches')
 screen_dims = get(0,'ScreenSize');
 figure_width = 12;
@@ -751,6 +767,7 @@ set(gca,'ytick',(1:5),'yticklabel',band_names)
 set(gca,'fontsize', 8)
 xtickangle(90)
 hcb = colorbar;
+colormap(flip(parula(40)))
 title(hcb,'Two-tailed p-value')
 title(sprintf('Mann-Whitney U test p-values for each band of each patient'),'fontsize',12)
 
@@ -781,14 +798,14 @@ lg = legend(h,'resected median > non-resected median','resected median < non-res
 set(lg,'color','w')
 
 save_name = sprintf('output/supplemental_figures/patient_p_values.png');
+fig.InvertHardcopy = 'off';
 saveas(fig,save_name) % save plot to output folder
 
 hold off
 
 % plot the difference between resected mean and non-resected mean
 
-colormap(flip(cool(40)))
-
+figure;
 fig = gcf;
 imagesc(distance,'AlphaData',~isnan(patient_p_values))
 set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_height)/2, figure_width, figure_height])
@@ -799,9 +816,10 @@ set(gca,'ytick',(1:5),'yticklabel',band_names)
 set(gca,'fontsize', 8)
 xtickangle(90)
 hcb = colorbar;
+colormap(flip(cool(40)))
 
 bound = max(abs(distance),[],'all');
-caxis([-bound, bound]);
+caxis([-3, 3]);
 
 title(hcb,'Resected mean - non-resected mean')
 title(sprintf('Difference between mean resected/non-resected z-score by patient'),'fontsize',12)
@@ -810,7 +828,18 @@ title(sprintf('Difference between mean resected/non-resected z-score by patient'
 text(find(strcmp({all_outcome_patients(:).outcome},'good')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'good'))),'G','Color','g','HorizontalAlignment','center','fontsize',10)
 text(find(strcmp({all_outcome_patients(:).outcome},'poor')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'poor'))),'P','Color','r','HorizontalAlignment','center','fontsize',10)
 
+frmt = @(x) convertCharsToStrings(sprintf('%.1f',x));
+formatted_distance = arrayfun(frmt,distance);
+formatted_distance(strcmp(formatted_distance,'NaN')) = "";
+
+% add distance values to plot
+text(X(:),Y(:),formatted_distance(:),'HorizontalAlignment', 'center','VerticalAlignment', 'middle','fontsize',5,'Color',[0,0,0])
+
+h=gca;
+h.YAxis.TickLength = [0 0];
+
 save_name = sprintf('output/supplemental_figures/patient_differences.png');
+fig.InvertHardcopy = 'off';
 saveas(fig,save_name) % save plot to output folder
 
 %% plot logistic regression results
