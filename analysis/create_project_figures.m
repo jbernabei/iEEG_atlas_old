@@ -5,6 +5,8 @@
 
 %% Set up workspace
 
+band_names = {'broadband','alpha-theta','beta','low-gamma','high-gamma'};
+
 % suppress warning
 warning('OFF', 'MATLAB:table:ModifiedAndSavedVarnames')
 
@@ -115,6 +117,13 @@ for j = 1:90
 end
 
 fprintf('\nRegion list loaded.\n')
+
+% remove some variables from memory
+vars = {'all_inds','atlas_info','d','datapath','electrode_regions', ...
+    'Error','fi','fileID','folderpath','j','k','label','metadata', ...
+    'move_files'};
+clear(vars{:})
+clear('vars')
 
 %% generate csv file with patient demographics
 
@@ -592,6 +601,17 @@ for test_band = 1:5
 end
 fprintf('\n')
 
+% remove some variables from memory
+vars = {'B','get_average_data','good_distances','good_means', ...
+    'good_plot_data','good_resected_plot_data','good_resected_z_score_mean', ...
+    'good_rows','good_variances','good_z_score_mean','h','line_length' ...
+    'mdl','outcomes','p','poor_distances','poor_means','poor_plot_data', ...
+    'poor_resected_plot_data','poor_resected_z_score_mean','poor_variances' ...
+    'poor_z_score_mean','predictors','s','save_name','screen_dims', ...
+    'stats','test_band','test_threshold','z_score_means','z_score_variances'};
+clear(vars{:})
+clear('vars')
+
 %% saving z-scores and z-score histograms on an individual basis
 fprintf('\n')
 
@@ -623,6 +643,7 @@ for k = 1:length(all_outcome_patients)
     bin_width = 0.2;
     
     for test_band = 1:5
+        
         subplot(2,3,test_band)
         
         non_resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.non_resected);
@@ -638,6 +659,7 @@ for k = 1:length(all_outcome_patients)
         h = 0;
         % get Mann-Whitney p-value
         if ~(isempty(non_resected_scores) || isempty(resected_scores)), [p,h] = ranksum(non_resected_scores,resected_scores,'Alpha',0.05); end
+        
         legend_entries = {};
         if ~isempty(non_resected_scores)
             histogram(non_resected_scores,'Normalization','probability','BinWidth',bin_width);
@@ -650,7 +672,7 @@ for k = 1:length(all_outcome_patients)
             xline(mean(resected_scores),'r','LineWidth',2);
             legend_entries = [legend_entries,{sprintf('Resected regions (n=%d)',length(resected_scores)),'Resected mean'}];
         end
-        title({sprintf('Band %d, p = %.5f%s',test_band,p,char(42*h)),''})
+        title({sprintf('%s, p = %.5f%s',band_names{test_band},p,char(42*h)),''})
         ylabel('Density')
         xlabel('Z-score')
         if ~isempty(legend_entries), legend(legend_entries); end
@@ -678,6 +700,184 @@ for k = 1:length(all_outcome_patients)
 end
 
 fprintf('Total number of patients with missing data: %d\n',counter)
+
+%% visualizing p-values by individual
+fprintf('\n')
+
+% exclude RNS patients
+cond = [hasData_field{:}] & (strcmp(outcome_field,'good') | strcmp(outcome_field,'poor'));
+
+all_outcome_patients = all_patients(cond);
+
+% initialize matrices to hold all patient stats
+patient_p_values = NaN(5,length(all_outcome_patients));
+direction = false(5,length(all_outcome_patients));
+distance = NaN(5,length(all_outcome_patients));
+
+for k = 1:length(all_outcome_patients)
+    patientID = all_outcome_patients(k).patientID;
+    line_length = fprintf('Getting p-values for %s...', patientID);
+    get_triu_data = @(x) x(triu(true(size(x))));
+    
+    for test_band = 1:5
+        
+        non_resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.non_resected);
+        resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.resected);
+
+        % remove NaN values
+        non_resected_scores = non_resected_scores(~isnan(non_resected_scores) & ~isinf(non_resected_scores));
+        resected_scores = resected_scores(~isnan(resected_scores) & ~isinf(resected_scores));
+        
+        % default p-value to display
+        p = NaN;
+        % test fails by default
+        h = 0;
+        % get Mann-Whitney p-value
+        if ~(isempty(non_resected_scores) || isempty(resected_scores))
+            [p,h] = ranksum(non_resected_scores,resected_scores,'Alpha',0.05);
+            % also, calculate the difference between the means
+            distance(test_band,k) = mean(resected_scores) - mean(non_resected_scores);
+        end
+        
+        % add p-value to visualiztion matrix
+        patient_p_values(test_band,k) = p;
+        
+        % add direction of distance between the resected and non-resected
+        % means
+        direction(test_band,k) = (median(resected_scores) - median(non_resected_scores) > 0);
+        
+    end
+    fprintf(repmat('\b',1,line_length))
+end
+
+alpha = 0.05;
+
+set(0,'units','inches')
+screen_dims = get(0,'ScreenSize');
+figure_width = 12;
+figure_height = 4;
+
+fig = gcf;
+imagesc(patient_p_values,'AlphaData',~isnan(patient_p_values))
+set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_height)/2, figure_width, figure_height])
+set(gca,'color',0*[1 1 1]);
+axis(gca,'equal');
+set(gca,'xtick',1:length({all_outcome_patients(:).patientID}),'xticklabel',{all_outcome_patients(:).patientID})
+set(gca,'ytick',(1:5),'yticklabel',band_names)
+set(gca,'fontsize', 8)
+xtickangle(90)
+hcb = colorbar;
+colormap(flip(parula(40)))
+title(hcb,'Two-tailed p-value')
+title(sprintf('Mann-Whitney U test p-values for each band of each patient'),'fontsize',12)
+
+pos_dist_sig_indices = find((patient_p_values < alpha) & direction);
+neg_dist_sig_indices = find((patient_p_values < alpha) & ~direction);
+%pos_dist_indices = find((patient_p_values >= alpha) & direction);
+%neg_dist_indices = find((patient_p_values >= alpha) & ~direction);
+[X,Y] = ndgrid(1:1:length({all_outcome_patients(:).patientID}),1:1:5);
+X = X.';
+Y = Y.';
+
+% add significance asterisks to plot
+text(X(pos_dist_sig_indices),Y(pos_dist_sig_indices),char(42),'Color',[0 0 1],'HorizontalAlignment', 'center','VerticalAlignment', 'middle')
+text(X(neg_dist_sig_indices),Y(neg_dist_sig_indices),char(42),'Color',[1 0 0],'HorizontalAlignment', 'center','VerticalAlignment', 'middle')
+%text(X(pos_dist_indices),Y(pos_dist_indices),'.','Color',[0 0 1],'HorizontalAlignment', 'center','VerticalAlignment', 'bottom')
+%text(X(neg_dist_indices),Y(neg_dist_indices),'.','Color',[1 0 0],'HorizontalAlignment', 'center','VerticalAlignment', 'bottom')
+
+% add characters signifying outcome to each column
+text(find(strcmp({all_outcome_patients(:).outcome},'good')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'good'))),'G','Color','g','HorizontalAlignment','center','fontsize',10)
+text(find(strcmp({all_outcome_patients(:).outcome},'poor')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'poor'))),'P','Color','r','HorizontalAlignment','center','fontsize',10)
+
+hold on
+
+h = zeros(2, 1);
+h(1) = plot(NaN,NaN,'.b');
+h(2) = plot(NaN,NaN,'.r');
+lg = legend(h,'resected median > non-resected median','resected median < non-resected median');
+set(lg,'color','w')
+
+save_name = sprintf('output/supplemental_figures/patient_p_values.png');
+fig.InvertHardcopy = 'off';
+saveas(fig,save_name) % save plot to output folder
+
+hold off
+
+% plot the difference between resected mean and non-resected mean
+
+figure;
+fig = gcf;
+imagesc(distance,'AlphaData',~isnan(patient_p_values))
+set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_height)/2, figure_width, figure_height])
+set(gca,'color',0*[1 1 1]);
+axis(gca,'equal');
+set(gca,'xtick',1:length({all_outcome_patients(:).patientID}),'xticklabel',{all_outcome_patients(:).patientID})
+set(gca,'ytick',(1:5),'yticklabel',band_names)
+set(gca,'fontsize', 8)
+xtickangle(90)
+hcb = colorbar;
+colormap(flip(cool(40)))
+
+bound = max(abs(distance),[],'all');
+caxis([-3, 3]);
+
+title(hcb,'Resected mean - non-resected mean')
+title(sprintf('Difference between mean resected/non-resected z-score by patient'),'fontsize',12)
+
+% add characters signifying outcome to each column
+text(find(strcmp({all_outcome_patients(:).outcome},'good')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'good'))),'G','Color','g','HorizontalAlignment','center','fontsize',10)
+text(find(strcmp({all_outcome_patients(:).outcome},'poor')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'poor'))),'P','Color','r','HorizontalAlignment','center','fontsize',10)
+
+frmt = @(x) convertCharsToStrings(sprintf('%.1f',x));
+formatted_distance = arrayfun(frmt,distance);
+formatted_distance(strcmp(formatted_distance,'NaN')) = "";
+
+% add distance values to plot
+text(X(:),Y(:),formatted_distance(:),'HorizontalAlignment', 'center','VerticalAlignment', 'middle','fontsize',5,'Color',[0,0,0])
+
+h=gca;
+h.YAxis.TickLength = [0 0];
+
+save_name = sprintf('output/supplemental_figures/patient_differences.png');
+fig.InvertHardcopy = 'off';
+saveas(fig,save_name) % save plot to output folder
+
+%% histograms of individual z-score distances by band
+
+% generate figure with a z-score histogram for each band
+fig = figure;
+fig.WindowState = 'maximized';
+get_triu_data = @(x) x(triu(true(size(x))));
+bin_width = 0.2;
+
+for test_band = 1:5
+
+    subplot(2,3,test_band)
+    
+    good_distances = distance(test_band,find(strcmp({all_outcome_patients.outcome},'good')));
+    poor_distances = distance(test_band,find(strcmp({all_outcome_patients.outcome},'poor')));
+
+    % remove NaN values
+    good_distances = good_distances(~isnan(good_distances) & ~isinf(good_distances));
+    poor_distances = poor_distances(~isnan(poor_distances) & ~isinf(poor_distances));
+
+    [p,h] = ranksum(good_distances,poor_distances,'Alpha',0.05);
+
+    histogram(good_distances,'Normalization','probability','BinWidth',bin_width);
+    xline(mean(good_distances),'b','LineWidth',2);
+    hold on
+    histogram(poor_distances,'Normalization','probability','BinWidth',bin_width);
+    xline(mean(poor_distances),'r','LineWidth',2);
+    title({sprintf('%s, p = %.5f%s',band_names{test_band},p,char(42*h)),''})
+    ylabel('Density')
+    xlabel('Difference')
+    legend({'Good outcome patients','Mean distance of good outcome patients','Poor outcome patients','Mean distance of poor outcome patients'});
+    legend('Location','southoutside','Box','off')
+    hold off
+end
+sgtitle({sprintf('Difference in mean z-scores (resected - non-resected) by band and outcome'),''},'FontSize',14)
+saveas(gcf,sprintf('output/supplemental_figures/distance_and_outcome_comparison.png')) % save plot to output folder
+
 %% plot logistic regression results
 
 bound = 30;
