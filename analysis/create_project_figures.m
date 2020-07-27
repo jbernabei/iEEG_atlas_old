@@ -842,6 +842,42 @@ save_name = sprintf('output/supplemental_figures/patient_differences.png');
 fig.InvertHardcopy = 'off';
 saveas(fig,save_name) % save plot to output folder
 
+%% histograms of individual z-score distances by band
+
+% generate figure with a z-score histogram for each band
+fig = figure;
+fig.WindowState = 'maximized';
+get_triu_data = @(x) x(triu(true(size(x))));
+bin_width = 0.2;
+
+for test_band = 1:5
+
+    subplot(2,3,test_band)
+    
+    good_distances = distance(test_band,find(strcmp({all_outcome_patients.outcome},'good')));
+    poor_distances = distance(test_band,find(strcmp({all_outcome_patients.outcome},'poor')));
+
+    % remove NaN values
+    good_distances = good_distances(~isnan(good_distances) & ~isinf(good_distances));
+    poor_distances = poor_distances(~isnan(poor_distances) & ~isinf(poor_distances));
+
+    [p,h] = ranksum(good_distances,poor_distances,'Alpha',0.05);
+
+    histogram(good_distances,'Normalization','probability','BinWidth',bin_width);
+    xline(mean(good_distances),'b','LineWidth',2);
+    hold on
+    histogram(poor_distances,'Normalization','probability','BinWidth',bin_width);
+    xline(mean(poor_distances),'r','LineWidth',2);
+    title({sprintf('%s, p = %.5f%s',band_names{test_band},p,char(42*h)),''})
+    ylabel('Density')
+    xlabel('Difference')
+    legend({'Good outcome patients','Mean distance of good outcome patients','Poor outcome patients','Mean distance of poor outcome patients'});
+    legend('Location','southoutside','Box','off')
+    hold off
+end
+sgtitle({sprintf('Difference in mean z-scores (resected - non-resected) by band and outcome'),''},'FontSize',14)
+saveas(gcf,sprintf('output/supplemental_figures/distance_and_outcome_comparison.png')) % save plot to output folder
+
 %% plot logistic regression results
 
 bound = 30;
