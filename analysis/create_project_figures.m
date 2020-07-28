@@ -322,6 +322,9 @@ poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 good_z_score_results = cell(num_good_patients,1);
 good_resected_z_score_results = cell(num_good_patients,1);
 
+threshold_results = NaN(num_good_patients,5);
+threshold_accuracies = NaN(num_good_patients,5);
+
 % to hold logistic regression results
 mnr_results = cell(5,3);
 mdl_results = cell(5,1);
@@ -361,6 +364,10 @@ for test_band = 1:5
         % place results into all_patients
         all_patients(good_patient_indices(s)).z_scores(test_band).data.non_resected = good_z_score_results{s};
         all_patients(good_patient_indices(s)).z_scores(test_band).data.resected = good_resected_z_score_results{s};
+        
+        if strcmp(test_patient.therapy,'Ablation')
+            [threshold_results(s,test_band),threshold_accuracies(s,test_band)] = get_optimal_threshold(good_z_score_results{s},good_resected_z_score_results{s});
+        end
         
         fprintf(repmat('\b',1,line_length))
         
@@ -598,8 +605,13 @@ for test_band = 1:5
     
     mdl = fitglm(predictors,outcomes,'Distribution','binomial','Link','logit');
     mdl_results(test_band) = {mdl};
+    
+    close all
 end
 fprintf('\n')
+
+% get average threshold values for each band
+avg_thresholds = nanmean(threshold_results,1);
 
 % remove some variables from memory
 vars = {'B','get_average_data','good_distances','good_means', ...
