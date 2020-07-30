@@ -229,9 +229,11 @@ for f = 1:5
     xtickangle(45)
     set(gca,'ytick',(1:90),'yticklabel',all_locs)
     set(gca,'fontsize', 4)
-    colorbar
+    cb = colorbar;
+    cb.FontSize = 8;
     title(sprintf('Connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
-    save_name = sprintf('output/non_resected_good_outcome_atlas_band_%d.png',test_band);
+    save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_atlas_band_%d.png',test_band);
+    fig.InvertHardcopy = 'off';
     saveas(fig,save_name) % save plot to output folder
 end
 
@@ -249,9 +251,11 @@ set(gca,'xtick',(1:90),'xticklabel',all_locs)
 xtickangle(45)
 set(gca,'ytick',(1:90),'yticklabel',all_locs)
 set(gca,'fontsize', 4)
-colorbar
+cb = colorbar;
+cb.FontSize = 8;
 title(sprintf('Sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
 save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_sample_sizes.png');
+fig.InvertHardcopy = 'off';
 saveas(fig,save_name) % save plot to output folder
 
 %%
@@ -1162,4 +1166,51 @@ end
 
 % quantify and compare results
 
+%% testing create_atlas_by_edge
+test_band = 1;
+test_threshold = 3;
+[mean_conn, std_conn, num_conn] = create_atlas_by_edge({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
 
+figure;
+fig = gcf;
+set(fig,'defaultAxesTickLabelInterpreter','none'); 
+set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+imagesc(num_conn,'AlphaData',~(num_conn==0))
+axis(gca,'equal');
+set(gca,'color',0*[1 1 1]);
+set(gca,'xtick',(1:90),'xticklabel',all_locs)
+xtickangle(45)
+set(gca,'ytick',(1:90),'yticklabel',all_locs)
+set(gca,'fontsize', 4)
+cb = colorbar;
+cb.FontSize = 8;
+title(sprintf('Electrode-level sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
+save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_electrode_level_sample_sizes.png');
+fig.InvertHardcopy = 'off';
+saveas(fig,save_name) % save plot to output folder
+
+for f = 1:5
+    test_band = f;
+
+    % run all good outcome patients in atlas
+    [mean_conn, std_conn, num_conn] = create_atlas_by_edge({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
+
+    % visualize adjacency matrices with labels added
+    figure;
+    fig = gcf;
+    set(fig,'defaultAxesTickLabelInterpreter','none'); 
+    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+    imagesc(mean_conn,'AlphaData',~isnan(mean_conn))
+    axis(gca,'equal');
+    set(gca,'color',0*[1 1 1]);
+    set(gca,'xtick',(1:90),'xticklabel',all_locs)
+    xtickangle(45)
+    set(gca,'ytick',(1:90),'yticklabel',all_locs)
+    set(gca,'fontsize', 4)
+    cb = colorbar;
+    cb.FontSize = 8;
+    title(sprintf('Electrode-level connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
+    save_name = sprintf('output/supplemental_figures/electrode_level_non_resected_good_outcome_atlas_band_%d.png',test_band);
+    fig.InvertHardcopy = 'off';
+    saveas(fig,save_name) % save plot to output folder
+end
