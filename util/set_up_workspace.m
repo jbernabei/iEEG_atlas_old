@@ -1,4 +1,6 @@
-function [all_patients, all_inds, all_locs, conn_field, coords_field, hasData_field, id_field, implant_field, outcome_field, resect_field, roi_field, target_field, therapy_field] = set_up_workspace(iEEG_atlas_path)
+function [all_patients, all_inds, all_locs, conn_field, coords_field, ...
+    hasData_field, id_field, implant_field, outcome_field, resect_field, ...
+    roi_field, target_field, therapy_field, region_list, region_names] = set_up_workspace(iEEG_atlas_path)
 
 addpath(genpath(iEEG_atlas_path))
 

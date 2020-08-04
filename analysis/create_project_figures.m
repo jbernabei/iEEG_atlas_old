@@ -1,4 +1,5 @@
 %% create_project_figures.m
+% In this script we create main project figures
 % John Bernabei
 % With assistance from Ian Ong
 % Litt Laboratory
@@ -19,7 +20,7 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
 
 [all_patients, all_inds, all_locs, conn_field, coords_field, hasData_field, id_field,...
     implant_field, outcome_field, resect_field, roi_field, target_field,...
-    therapy_field] = set_up_workspace(iEEG_atlas_path);
+    therapy_field, region_list, region_names] = set_up_workspace(iEEG_atlas_path);
 
 %% generate csv file with patient demographics
 
@@ -86,61 +87,6 @@ title(sprintf('Sample sizes for each edge in non-resected regions of good outcom
 save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_sample_sizes.png');
 fig.InvertHardcopy = 'off';
 saveas(fig,save_name) % save plot to output folder
-
-%%
-%dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
-%save('output/atlas.edge','good_mean_conn','-ascii');
-%BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','output/atlas.edge','final_render.mat','output/elecs.jpg')
-%% Figure 2A: cross - validate out-of-bag predictions on good outcome patients
-% plot atlas of non-resected regions in good-outcome patients
-% fig = figure;
-% set(fig,'defaultAxesTickLabelInterpreter','none');  
-% fig.WindowState = 'maximized';
-% imagesc(good_mean_conn)
-% title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band);
-% title(title_text)
-% xticks((1:length(region_names)))
-% yticks((1:length(region_names)))
-% xlabel('Region')
-% ylabel('Region')
-% xticklabels(region_names)
-% yticklabels(region_names)
-% xtickangle(90)
-% ax = gca;
-% ax.XAxis.FontSize = 6;
-% ax.YAxis.FontSize = 6;
-% save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band, test_threshold);
-% saveas(gcf,save_name) % save plot to output folder
-
-% plot matrices showing number of samples available for each edge
-% samples = {all_samples,good_samples,poor_samples};
-% title_suffixes = {'all patients','good outcome patients','poor outcome patients'};
-% 
-% mymap = colormap('hot');
-% mymap = cat(1,[0 0 0],mymap);
-
-% for a = 1:length(samples)
-%     fig = figure;
-%     set(fig,'defaultAxesTickLabelInterpreter','none');
-%     fig.WindowState = 'maximized';
-%     imagesc(samples{a})
-%     colorbar(gca);
-%     colormap(mymap);
-%     title_text = sprintf('Sample sizes by edge (%s)',title_suffixes{a});
-%     title(title_text)
-%     xticks((1:length(region_names)))
-%     yticks((1:length(region_names)))
-%     xlabel('Region')
-%     ylabel('Region')
-%     xticklabels(region_names);
-%     yticklabels(region_names);
-%     xtickangle(90)
-%     ax = gca;
-%     ax.XAxis.FontSize = 6;
-%     ax.YAxis.FontSize = 6;
-%     save_name = sprintf('output/samples_available_%d.png',a);
-%     saveas(gcf,save_name)
-% end
 
 %% Figure 2B: cross - validate out-of-bag predictions
 
@@ -305,8 +251,9 @@ for test_band = 1:5
     poor_resected_plot_data = rmoutliers(poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data)));
     %poor_resected_plot_data = poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data));
 
-    histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
+    
     hold on
+    histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
     histogram(poor_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
     title({sprintf('Z-scores of connectivity strengths in poor outcome patients (band %d)',test_band),''})
     ylabel('Density')
@@ -1003,7 +950,7 @@ test_threshold = 3;
 figure;
 fig = gcf;
 set(fig,'defaultAxesTickLabelInterpreter','none'); 
-set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+%set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
 imagesc(num_conn,'AlphaData',~(num_conn==0))
 axis(gca,'equal');
 set(gca,'color',0*[1 1 1]);
@@ -1028,7 +975,7 @@ for f = 1:5
     figure;
     fig = gcf;
     set(fig,'defaultAxesTickLabelInterpreter','none'); 
-    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+    %set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
     imagesc(mean_conn,'AlphaData',~isnan(mean_conn))
     axis(gca,'equal');
     set(gca,'color',0*[1 1 1]);
