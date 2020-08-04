@@ -1,200 +1,30 @@
 %% create_project_figures.m
+% In this script we create main project figures
 % John Bernabei
 % With assistance from Ian Ong
 % Litt Laboratory
+% Summer 2020
+% https://github.com/jbernabei/iEEG_atlas
 
-%% Set up workspace
+%% set up workspace
+
+clear all
 
 band_names = {'broadband','alpha-theta','beta','low-gamma','high-gamma'};
 
 % suppress warning
 warning('OFF', 'MATLAB:table:ModifiedAndSavedVarnames')
 
-% load in data from excel spreadsheet
-metadata = readtable("data/atlas_project_metadata.xlsx");
+base_path = '/Users/jbernabei/Documents/PhD_Research/ecog_seeg/ecog_vs_seeg';
+iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas';
 
-% enable warnings
-warning ('on','all')
-
-good_outcome_pts = {'HUP082','HUP086','HUP088','HUP094','HUP105','HUP106','HUP111','HUP116','HUP117',...
-                    'HUP125','HUP130','HUP139','HUP140','HUP150','HUP151','HUP157','HUP163','HUP164',...
-                    'HUP165','HUP173','HUP177','HUP179','HUP180','HUP181','HUP185'};
-
-poor_outcome_pts = {'HUP060','HUP075','HUP078','HUP112','HUP133','HUP138','HUP141','HUP158','HUP170','HUP171','HUP172','HUP188'};
-
-% place patients in a struct, extracting all relevant metadata
-all_patients = struct('patientID',metadata.Patient, ...
-'outcome', metadata.Outcome,'conn',cell(length(metadata.Patient),1), ...
-'coords',cell(length(metadata.Patient),1), ...
-'roi',cell(length(metadata.Patient),1), ...
-'resect',cell(length(metadata.Patient),1), ...
-'hasData',cell(length(metadata.Patient),1),...
-'therapy',metadata.Therapy,'implant',metadata.Implant,...
-'target',metadata.Target,'laterality',metadata.Laterality,...
-'lesion_status',metadata.Lesion_status,'age_onset',metadata.Age_onset,...
-'age_surgery',metadata.Age_surgery,'gender',metadata.Gender,...
-'hypothesis_1',metadata.Hypothesis_1,'hypothesis_2',metadata.Hypothesis_2, ...
-'z_scores',repmat({repmat(struct('data',struct('non_resected',[],'resected',[])),1,5)},length(metadata.Patient),1));
-
-% Extract atlas indices and ROIs available from atlas (here AAL116 w/WM)
-fileID = fopen('localization/AAL116_WM.txt');
-atlas_info = textscan(fileID,'%s %s %d');
-all_inds = [double(atlas_info{3})];
-all_locs = [atlas_info{2}];
-
-% set up arrays to store data
-id_field = {all_patients.patientID};
-conn_field = {all_patients.conn};
-coords_field = {all_patients.coords};
-roi_field = {all_patients.coords};
-resect_field = {all_patients.resect};
-outcome_field = {all_patients.outcome};
-hasData_field = {all_patients.hasData};
-therapy_field = {all_patients.therapy};
-implant_field = {all_patients.implant};
-target_field = {all_patients.target};
-
-% if true, the script will automatically move problematic data to another
-% directory
-move_files = false;
-
-% load in data from all patients
-for k = 1:length(metadata.Patient)
-    folderpath = sprintf('data/%s',id_field{k});
-    datapath = sprintf('%s/patient_data.mat',folderpath);
-    if isfile(datapath)
-        fprintf('%s: ',datapath)
-        d = load(datapath);
-        conn_field{k} = d.II_conn;
-        if sum(sum(~isnan(d.II_conn(1).data))) == 0
-            hasData_field{k} = false;
-            fprintf('(connectivity data is all NaNs!)\n')
-            if move_files, movefile(folderpath,'data/exclude/no_conn_data'); end
-            continue
-        else
-            hasData_field{k} = true;
-        end
-        coords_field{k} = d.mni_coords;
-        
-        try
-            resect_field{k} = d.res_elec_inds;
-        catch Error
-            resect_field{k} = [];
-        end
-        % convert all electrode coordinates to region names
-        try
-            [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
-            roi_field{k} = electrode_regions;
-            fprintf('loaded\n')
-        catch ME
-            fprintf('failed to load\n')
-            warning('Problem converting MNI coordinates to region labels\n(%s)',datapath, ME.identifier)
-            hasData_field{k} = false;
-            if move_files, movefile(folderpath,'data/exclude/out_of_bound_electrodes'); end
-        end
-    else
-        hasData_field{k} = false;
-    end
-end
-
-% place data back into main struct
-[all_patients.conn] = conn_field{:};
-[all_patients.coords] = coords_field{:};
-[all_patients.roi] = roi_field{:};
-[all_patients.resect] = resect_field{:};
-[all_patients.hasData] = hasData_field{:};
-
-fprintf('\nAll patient data loaded.')
-
-% load in region numbers
-region_list = zeros(1,90); % for the 90 AAL regions we will be using
-region_names = cell(1,90);
-fi = fopen("localization/AAL116_WM.txt");
-for j = 1:90
-    label = split(fgetl(fi));
-    region_list(j) = str2double(label{3});
-    region_names{j} = label{2};
-end
-
-fprintf('\nRegion list loaded.\n')
-
-% remove some variables from memory
-vars = {'all_inds','atlas_info','d','datapath','electrode_regions', ...
-    'Error','fi','fileID','folderpath','j','k','label','metadata', ...
-    'move_files'};
-clear(vars{:})
-clear('vars')
+[all_patients, all_inds, all_locs, conn_field, coords_field, hasData_field, id_field,...
+    implant_field, outcome_field, resect_field, roi_field, target_field,...
+    therapy_field, region_list, region_names] = set_up_workspace(iEEG_atlas_path);
 
 %% generate csv file with patient demographics
 
-% get patients who have data
-study_patients = all_patients([hasData_field{:}]);
-good_patients = study_patients(strcmp({study_patients.outcome},'good'));
-poor_patients = study_patients(strcmp({study_patients.outcome},'poor'));
-
-% create output table
-row_names = {'Total number of subjects','Age at surgery',sprintf('Mean \x00B1 SD'), ...
-    'Age at diagnosis',sprintf('Mean \x00B1 STD'),'Sex','Male','Female', ...
-    'Electrode type','ECoG','SEEG','Resected/ablated region','MTL','Temporal', ...
-    'MFL','Frontal','Parietal/FP','Insular','MRI','Lesional','Non-lesional', ...
-    'Unknown','Therapy','Ablation','Resection'};
-
-values_to_count = {'M','F','ECoG','SEEG','MTL','Temporal','MFL', ...
-    'Frontal','Parietal','Insular','Lesional','Non-Lesional','', ...
-    'Ablation','Resection'};
-
-remove_rows = [1,2,3,4,5,6,9,12,19,23];
-fill_rows = 1:length(row_names);
-fill_rows(remove_rows) = [];
-
-% dictionary for target lobe names
-% target_map = containers.Map({'Frontal','Temporal','FP','Parietal', ...
-%     'MTL','MFL','Insular'},{'FL/PL/FPL','TL','FL/PL/FPL','FL/PL/FPL', ...
-%     'TL','FL/PL/FPL','FL/PL/FPL'});
-% get_target = @(x) target_map(x);
-
-% set up table
-
-structs = {good_patients, poor_patients};
-demographic_table = cell2table(cell(length(row_names),length(structs)));
-for b = 1:length(structs)
-    patients = structs{b};
-    
-    % prepare data to be read into table
-    targets = {patients.target};
-    targets{strcmp(targets,'FP')} = 'Parietal';
-    [patients.target] = targets{:};
-   
-    patient_attributes = {patients.gender;patients.gender; ...
-        patients.implant;patients.implant;patients.target; ...
-        patients.target;patients.target;patients.target; ...
-        patients.target;patients.target;patients.lesion_status; ...
-        patients.lesion_status;patients.lesion_status; ...
-        patients.therapy;patients.therapy}.';
-%     targets = cellfun(get_target,{patients.target},'UniformOutput',false);
-%     targets_and_lateralities = join([{patients.laterality}.',targets.'],2);
-%     target_counts = countcats(categorical(targets_and_lateralities));
-    data_column = cell(length(row_names),1);
-    % Total number of subjects
-    data_column{1} = length(patients);
-    % Age at surgery
-    data_column{3} = sprintf('%.1f \x00B1 %.1f',nanmean([patients.age_surgery]),nanstd([patients.age_surgery]));
-    % Age at diagnosis
-    data_column{5} = sprintf('%.1f \x00B1 %.1f',nanmean([patients.age_onset]),nanstd([patients.age_onset]));
-    
-    for w = 1:length(fill_rows)
-        data_column{fill_rows(w)} = sum(strcmp(patient_attributes(:,w), values_to_count{w}));
-    end
-    
-    demographic_table(:,b) = data_column;
-end
-
-demographic_table.Properties.RowNames = row_names;
-demographic_table.Properties.VariableNames = {'Good surgical outcome','Poor surgical outcome'};
-
-writetable(demographic_table,'output/patient_demographics.xlsx','WriteRowNames',true)
-
-fprintf('Demographic table saved.\n')
+create_data_table(all_patients, hasData_field);
 
 %% Figure 1A: construct adjacency matrix of all good outcome patients
 
@@ -257,61 +87,6 @@ title(sprintf('Sample sizes for each edge in non-resected regions of good outcom
 save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_sample_sizes.png');
 fig.InvertHardcopy = 'off';
 saveas(fig,save_name) % save plot to output folder
-
-%%
-%dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
-%save('output/atlas.edge','good_mean_conn','-ascii');
-%BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/render_elecs.node','output/atlas.edge','final_render.mat','output/elecs.jpg')
-%% Figure 2A: cross - validate out-of-bag predictions on good outcome patients
-% plot atlas of non-resected regions in good-outcome patients
-% fig = figure;
-% set(fig,'defaultAxesTickLabelInterpreter','none');  
-% fig.WindowState = 'maximized';
-% imagesc(good_mean_conn)
-% title_text = sprintf('Atlas of non-resected regions in good outcome patients (band %d)',test_band);
-% title(title_text)
-% xticks((1:length(region_names)))
-% yticks((1:length(region_names)))
-% xlabel('Region')
-% ylabel('Region')
-% xticklabels(region_names)
-% yticklabels(region_names)
-% xtickangle(90)
-% ax = gca;
-% ax.XAxis.FontSize = 6;
-% ax.YAxis.FontSize = 6;
-% save_name = sprintf('output/good_non_resected_atlas_%d.png',test_band, test_threshold);
-% saveas(gcf,save_name) % save plot to output folder
-
-% plot matrices showing number of samples available for each edge
-% samples = {all_samples,good_samples,poor_samples};
-% title_suffixes = {'all patients','good outcome patients','poor outcome patients'};
-% 
-% mymap = colormap('hot');
-% mymap = cat(1,[0 0 0],mymap);
-
-% for a = 1:length(samples)
-%     fig = figure;
-%     set(fig,'defaultAxesTickLabelInterpreter','none');
-%     fig.WindowState = 'maximized';
-%     imagesc(samples{a})
-%     colorbar(gca);
-%     colormap(mymap);
-%     title_text = sprintf('Sample sizes by edge (%s)',title_suffixes{a});
-%     title(title_text)
-%     xticks((1:length(region_names)))
-%     yticks((1:length(region_names)))
-%     xlabel('Region')
-%     ylabel('Region')
-%     xticklabels(region_names);
-%     yticklabels(region_names);
-%     xtickangle(90)
-%     ax = gca;
-%     ax.XAxis.FontSize = 6;
-%     ax.YAxis.FontSize = 6;
-%     save_name = sprintf('output/samples_available_%d.png',a);
-%     saveas(gcf,save_name)
-% end
 
 %% Figure 2B: cross - validate out-of-bag predictions
 
@@ -476,8 +251,9 @@ for test_band = 1:5
     poor_resected_plot_data = rmoutliers(poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data)));
     %poor_resected_plot_data = poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data));
 
-    histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
+    
     hold on
+    histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
     histogram(poor_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
     title({sprintf('Z-scores of connectivity strengths in poor outcome patients (band %d)',test_band),''})
     ylabel('Density')
@@ -1174,7 +950,7 @@ test_threshold = 3;
 figure;
 fig = gcf;
 set(fig,'defaultAxesTickLabelInterpreter','none'); 
-set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+%set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
 imagesc(num_conn,'AlphaData',~(num_conn==0))
 axis(gca,'equal');
 set(gca,'color',0*[1 1 1]);
@@ -1199,7 +975,7 @@ for f = 1:5
     figure;
     fig = gcf;
     set(fig,'defaultAxesTickLabelInterpreter','none'); 
-    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+    %set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
     imagesc(mean_conn,'AlphaData',~isnan(mean_conn))
     axis(gca,'equal');
     set(gca,'color',0*[1 1 1]);
