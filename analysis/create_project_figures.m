@@ -169,73 +169,50 @@ for test_band = 1:5
     figure
     set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, 2, figure_width, 6])
     
-    % plot ALL z-score results for GOOD outcome patients
-    subplot(1,2,1)
-    
-    bin_width = 0.2;
+    bin_width = 1;
     
     good_scores = {all_patients(good_patient_indices).z_scores};
     poor_scores = {all_patients(poor_patient_indices).z_scores};
+    sub_groups = {good_scores, poor_scores};
     
-    data_groups = {'out_out','in_in','in_out'};
-    colors = {'--b','--r','--o'};
+    edge_groups = {'out_out','in_in','in_out'};
+    colors = {'#0072BD','#D95319','#EDB120'};
+    titles = {{sprintf('Standardized scores of connectivity strengths\nin good outcome patients (band %d)',test_band),''}, ...
+        {sprintf('Standardized scores of connectivity strengths\nin poor outcome patients (band %d)',test_band),''}};
     
-    hold on
+    % plot ALL z-score results for GOOD and POOR outcome patients
     
-    for k = 1:length(data_groups)
+    for j = 1:length(sub_groups)
         
-        get_score_data = @(x) x(test_band).data.(data_groups{k})(triu(true(size(x(test_band).data.(data_groups{k})))));
-        % remove outliers and bottom triangle of data
-        plot_data = cellfun(get_score_data,good_scores,'UniformOutput',false);
-        plot_data = cell2mat(plot_data);
-        plot_data = plot_data(:);
-        plot_data = rmoutliers(plot_data(~isnan(plot_data) & ~isinf(plot_data)));
-        
-        histogram(plot_data,'Normalization','probability','BinWidth',bin_width);
-        
-        xline(mean(plot_data),colors{k},'LineWidth',1);
-        
-    end
-    title({sprintf('Z-scores of connectivity strengths in good outcome patients (band %d)',test_band),''})
-    ylabel('Density')
-    xlabel('Z-score')
-    % draw lines representing the medians of both groups
-    
-    legend('OUT-OUT','OUT-OUT mean','IN-IN','IN-IN mean','IN-OUT','IN-OUT mean')
-    legend('Location','northeast','Box','off')
-    % set(gca,'YScale','log')
-    hold off
+        subplot(1,2,j)
+        for k = 1:length(edge_groups)
 
-    % plot ALL z-score results for POOR outcome patients
-    % remove outliers and bottom triangle of data
-    subplot(1,2,2)
-    hold on
-    
-    for k = 1:length(data_groups)
+            get_score_data = @(x) x(test_band).data.(edge_groups{k})(triu(true(size(x(test_band).data.(edge_groups{k})))));
+            % remove outliers and bottom triangle of data
+            plot_data = cellfun(get_score_data,sub_groups{j},'UniformOutput',false);
+            plot_data = cell2mat(plot_data);
+            plot_data = plot_data(:);
+            plot_data = rmoutliers(plot_data(~isnan(plot_data) & ~isinf(plot_data)));
+
+            histogram(plot_data,'BinWidth',bin_width);
+            hold on
+            
+            % plot mean
+            xline(mean(plot_data),'--','Color',colors{k},'LineWidth',1);
+
+        end
         
-        get_score_data = @(x) x(test_band).data.(data_groups{k})(triu(true(size(x(test_band).data.(data_groups{k})))));
-        % remove outliers and bottom triangle of data
-        plot_data = cellfun(get_score_data,poor_scores,'UniformOutput',false);
-        plot_data = cell2mat(plot_data);
-        plot_data = plot_data(:);
-        plot_data = rmoutliers(plot_data(~isnan(plot_data) & ~isinf(plot_data)));
-        
-        histogram(plot_data,'Normalization','probability','BinWidth',bin_width);
-        
-        xline(mean(plot_data),colors{k},'LineWidth',1);
-        
+        title(titles{j})
+        ylabel('Count')
+        xlabel('Score')
+
+        legend('OUT-OUT','OUT-OUT mean','IN-IN','IN-IN mean','IN-OUT','IN-OUT mean')
+        legend('Location','northeast','Box','off')
+
+        hold off
     end
-    title({sprintf('Z-scores of connectivity strengths in poor outcome patients (band %d)',test_band),''})
-    ylabel('Density')
-    xlabel('Z-score')
-    % draw lines representing the medians of both groups
     
-    legend('OUT-OUT','OUT-OUT mean','IN-IN','IN-IN mean','IN-OUT','IN-OUT mean')
-    legend('Location','northeast','Box','off')
-    % set(gca,'YScale','log')
-    hold off
-    
-    save_name = sprintf('output/z_score_histogram_band_%d.png',test_band);
+    save_name = sprintf('output/supplemental_figures/z_score_histogram_band_%d.png',test_band);
     saveas(gcf,save_name) % save plot to output folder
 
     % TODO: Statistical testing on z-score distributions
