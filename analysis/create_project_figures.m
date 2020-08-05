@@ -98,6 +98,9 @@ poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 threshold_results = NaN(num_good_patients,5);
 threshold_accuracies = NaN(num_good_patients,5);
 
+% to hold rank-sum test results
+validation_test_results = cell(5,9);
+
 % to hold logistic regression results
 mnr_results = cell(5,3);
 mdl_results = cell(5,1);
@@ -134,9 +137,6 @@ for test_band = 1:5
     %good_z_score_mean = nanmean(cat(3,good_z_score_results{:}),3);
     %good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
 
-    % save results to output folder
-    %save('output/figure_2B_good_data.mat','good_z_score_mean','good_resected_z_score_mean')
-
     % repeat cross-validation for poor outcome patients
 
     % calculate atlas for good outcome patients only
@@ -163,9 +163,6 @@ for test_band = 1:5
     %poor_z_score_mean = mean(cat(3,poor_z_score_results{:}),3,'omitnan');
     %poor_resected_z_score_mean = mean(cat(3,poor_resected_z_score_results{:}),3,'omitnan');
 
-    % save results to output folder
-    %save('output/figure_2B_poor_data.mat','poor_z_score_mean','poor_resected_z_score_mean')
-
     figure
     set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, 2, figure_width, 6])
     
@@ -175,10 +172,11 @@ for test_band = 1:5
     poor_scores = {all_patients(poor_patient_indices).z_scores};
     sub_groups = {good_scores, poor_scores};
     
-    edge_groups = {'out_out','in_in','in_out'};
+    edge_groups = {'out_out','in_out','in_in'};
+    edge_pairs = {'out_out','in_in';'out_out','in_out';'in_out','in_in'};
     colors = {'#0072BD','#D95319','#EDB120'};
-    titles = {{sprintf('Standardized scores of connectivity strengths\nin good outcome patients (band %d)',test_band),''}, ...
-        {sprintf('Standardized scores of connectivity strengths\nin poor outcome patients (band %d)',test_band),''}};
+    titles = {{sprintf('Standardized scores of connectivity strengths\nin good outcome patients (%s)',band_names{test_band}),''}, ...
+        {sprintf('Standardized scores of connectivity strengths\nin poor outcome patients (%s)',band_names{test_band}),''}};
     
     % plot ALL z-score results for GOOD and POOR outcome patients
     
@@ -206,7 +204,7 @@ for test_band = 1:5
         ylabel('Count')
         xlabel('Score')
 
-        legend('OUT-OUT','OUT-OUT mean','IN-IN','IN-IN mean','IN-OUT','IN-OUT mean')
+        legend('OUT-OUT','OUT-OUT mean','IN-OUT','IN-OUT mean','IN-IN','IN-IN mean')
         legend('Location','northeast','Box','off')
 
         hold off
@@ -215,26 +213,40 @@ for test_band = 1:5
     save_name = sprintf('output/supplemental_figures/z_score_histogram_band_%d.png',test_band);
     saveas(gcf,save_name) % save plot to output folder
 
-    % TODO: Statistical testing on z-score distributions
-%     fprintf('\n\n===== TESTS ON BAND %d =====\n', test_band)
-%     
-%     fprintf('\n=== Wilcoxon rank sum test ===\n')
-%     fprintf('H0: The z-scores of non-resected regions in good and poor outcome patients come from distributions with equal medians.\n')
-%     [p,h] = ranksum(good_plot_data,poor_plot_data,'Alpha',0.05);
-%     fprintf('p-value = %d',p)
-%     if h, fprintf('*'); end
-%     fprintf('\nH0: The z-scores of resected regions in good and poor outcome patients come from distributions with equal medians.\n')
-%     [p,h] = ranksum(good_resected_plot_data,poor_resected_plot_data,'Alpha',0.05);
-%     fprintf('p-value = %d',p)
-%     if h, fprintf('*'); end
-%     fprintf('\nH0: The median z-scores of non-resected regions and resected regions in good outcome patients are equal.\n')
-%     [p,h] = ranksum(good_resected_plot_data,good_plot_data,'Alpha',0.05);
-%     fprintf('p-value = %d',p)
-%     if h, fprintf('*'); end
-%     fprintf('\nH0: The median z-scores of non-resected regions and resected regions in poor outcome patients are equal.\n')
-%     [p,h] = ranksum(poor_resected_plot_data,poor_plot_data,'Alpha',0.05);
-%     fprintf('p-value = %d',p)
-%     if h, fprintf('*'); end
+    % Statistical testing on z-score distributions
+    % test edge type distributions within outcome group
+    for j = 1:length(sub_groups)
+        for k = 1:length(edge_pairs)
+            edge_pair = edge_pairs(k,:);
+            distribs = cell(1,2);
+            for m = 1:2
+                get_score_data = @(x) x(test_band).data.(edge_pair{m})(triu(true(size(x(test_band).data.(edge_pair{1})))));
+                distrib = cellfun(get_score_data,sub_groups{j},'UniformOutput',false);
+                distrib = cell2mat(distrib);
+                distrib = distrib(:);
+                distrib = distrib(~isnan(distrib) & ~isinf(distrib));
+                distribs{m} = distrib;
+            end
+            [p,h] = ranksum(distribs{1},distribs{2},'Alpha',0.05);
+            validation_test_results{test_band,k+((j-1)*(length(edge_pairs)))} = ...
+                sprintf('%.5f%s',p,char(42*h));
+        end
+    end
+    % test the same edge type distributions between outcome groups
+    for j = 1:length(edge_groups)
+        distribs = cell(1,2);
+        for m = 1:length(sub_groups)
+            get_score_data = @(x) x(test_band).data.(edge_groups{j})(triu(true(size(x(test_band).data.(edge_pair{1})))));
+            distrib = cellfun(get_score_data,sub_groups{m},'UniformOutput',false);
+            distrib = cell2mat(distrib);
+            distrib = distrib(:);
+            distrib = distrib(~isnan(distrib) & ~isinf(distrib));
+            distribs{m} = distrib;
+        end
+        [p,h] = ranksum(distribs{1},distribs{2},'Alpha',0.05);
+            validation_test_results{test_band,j+(length(sub_groups)*(length(edge_pairs)))} = ...
+                sprintf('%.5f%s',p,char(42*h));
+    end
 
     % TODO: logistic regression
     % predictors: distance between mean resected and mean non-resected 
@@ -290,6 +302,16 @@ fprintf('\n')
 
 % get average threshold values for each band
 avg_thresholds = nanmean(threshold_results,1);
+
+validation_test_result_table = cell2table(validation_test_results, ...
+    'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
+    'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
+    'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
+    'IN-IN to IN-IN (between)'},'RowNames',band_names);
+
+writetable(validation_test_result_table,'output/supplemental_figures/validation_test_results.xlsx','WriteRowNames',true)
+
+fprintf('Statistical test results saved.\n')
 
 % remove some variables from memory
 vars = {'B','get_average_data','good_distances','good_means', ...

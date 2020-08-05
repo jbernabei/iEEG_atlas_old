@@ -25,3 +25,5 @@ output/*.jpeg
 # output/final_render.mat
 output/*.xls
 output/*.xlsx
+!/output/supplemental_figures/*.xls
+!/output/supplemental_figures/*.xlsx
