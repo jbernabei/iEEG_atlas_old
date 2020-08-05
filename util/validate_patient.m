@@ -33,13 +33,15 @@ res_regions = setdiff(regions_with_res_elec,regions_with_non_res_elec);
 % convert region labels to indices on score_matrix
 [~,non_res_indices] = ismember(non_res_regions,region_list);
 [~,res_indices] = ismember(res_regions,region_list);
+non_res_indices(non_res_indices == 0) = [];
+res_indices(res_indices == 0) = [];
 
 % calculate matrix to determine which edge is of which type
 type_matrix = zeros(size(score_matrix));
 type_matrix(non_res_indices,:) = type_matrix(non_res_indices,:)+1;
-type_matrix(:,non_res_indices) = type_matrix(non_res_indices,:)+1;
-type_matrix(res_indices,:) = type_matrix(non_res_indices,:)-1;
-type_matrix(:,res_indices) = type_matrix(non_res_indices,:)-1;
+type_matrix(:,non_res_indices) = type_matrix(:,non_res_indices)+1;
+type_matrix(res_indices,:) = type_matrix(res_indices,:)-1;
+type_matrix(:,res_indices) = type_matrix(:,res_indices)-1;
 type_matrix = floor(type_matrix./2);
 
 % output matrices

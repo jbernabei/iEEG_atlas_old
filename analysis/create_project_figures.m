@@ -95,9 +95,6 @@ num_poor_patients = sum([hasData_field{:}] & strcmp(outcome_field,'poor'));
 good_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'good'));
 poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
 
-good_z_score_results = cell(num_good_patients,1);
-good_resected_z_score_results = cell(num_good_patients,1);
-
 threshold_results = NaN(num_good_patients,5);
 threshold_accuracies = NaN(num_good_patients,5);
 
@@ -119,82 +116,52 @@ for test_band = 1:5
 
         line_length = fprintf('Testing %s...', test_patient.patientID);
 
-        % get connectivity atlas of excluded patients
-        [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
-
-        % get connectivity atlas of test patient
-        [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
-        
-        % get non-resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        good_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-
-        % get resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        good_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
+        [out_out_scores,in_in_scores,in_out_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem");
         
         % place results into all_patients
-        all_patients(good_patient_indices(s)).z_scores(test_band).data.non_resected = good_z_score_results{s};
-        all_patients(good_patient_indices(s)).z_scores(test_band).data.resected = good_resected_z_score_results{s};
+        all_patients(good_patient_indices(s)).z_scores(test_band).data.out_out = out_out_scores;
+        all_patients(good_patient_indices(s)).z_scores(test_band).data.in_in = in_in_scores;
+        all_patients(good_patient_indices(s)).z_scores(test_band).data.in_out = in_out_scores;
         
         if strcmp(test_patient.therapy,'Ablation')
-            [threshold_results(s,test_band),threshold_accuracies(s,test_band)] = get_optimal_threshold(good_z_score_results{s},good_resected_z_score_results{s});
+            [threshold_results(s,test_band),threshold_accuracies(s,test_band)] = get_optimal_threshold(out_out_scores,in_in_scores);
         end
         
         fprintf(repmat('\b',1,line_length))
         
     end
-
-    good_z_score_mean = nanmean(cat(3,good_z_score_results{:}),3);
-    good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
+    
+    %good_z_score_mean = nanmean(cat(3,good_z_score_results{:}),3);
+    %good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
 
     % save results to output folder
     %save('output/figure_2B_good_data.mat','good_z_score_mean','good_resected_z_score_mean')
 
     % repeat cross-validation for poor outcome patients
-    poor_z_score_results = cell(num_poor_patients,1);
-    poor_resected_z_score_results = cell(num_poor_patients,1);
 
     % calculate atlas for good outcome patients only
     % this serves as the "model" for the cross-validation
     cv_patients = all_patients(good_patient_indices);
-    [mean_conn, std_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
-
+    
     % cross-validation of poor-outcome patients
     for s = 1:length(poor_patient_indices)
         test_patient = all_patients(poor_patient_indices(s));
 
         line_length = fprintf('Testing %s...', test_patient.patientID);
 
-        % get connectivity atlas of test patient
-        [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
+        [out_out_scores,in_in_scores,in_out_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem");
 
-        % get non-resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(setdiff(1:length(test_patient.roi),test_patient.resect),:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        poor_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-
-        % get resected region labels of test patient
-        [~, patient_roi, ~] = nifti_values(test_patient.coords(test_patient.resect,:),'localization/AAL116_WM.nii');
-
-        % test atlas
-        poor_resected_z_score_results{s} = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi);
-        
         % place results into all_patients
-        all_patients(poor_patient_indices(s)).z_scores(test_band).data.non_resected = poor_z_score_results{s};
-        all_patients(poor_patient_indices(s)).z_scores(test_band).data.resected = poor_resected_z_score_results{s};
+        all_patients(poor_patient_indices(s)).z_scores(test_band).data.out_out = out_out_scores;
+        all_patients(poor_patient_indices(s)).z_scores(test_band).data.in_in = in_in_scores;
+        all_patients(poor_patient_indices(s)).z_scores(test_band).data.in_out = in_out_scores;
         
         fprintf(repmat('\b',1,line_length))
         
     end
 
-    poor_z_score_mean = mean(cat(3,poor_z_score_results{:}),3,'omitnan');
-    poor_resected_z_score_mean = mean(cat(3,poor_resected_z_score_results{:}),3,'omitnan');
+    %poor_z_score_mean = mean(cat(3,poor_z_score_results{:}),3,'omitnan');
+    %poor_resected_z_score_mean = mean(cat(3,poor_resected_z_score_results{:}),3,'omitnan');
 
     % save results to output folder
     %save('output/figure_2B_poor_data.mat','poor_z_score_mean','poor_resected_z_score_mean')
@@ -204,31 +171,37 @@ for test_band = 1:5
     
     % plot ALL z-score results for GOOD outcome patients
     subplot(1,2,1)
-    get_data = @(x) x(triu(true(size(x))));
+    
     bin_width = 0.2;
-    % remove outliers and bottom triangle of data
-    good_plot_data = cellfun(get_data,good_z_score_results,'UniformOutput',false);
-    good_plot_data = cell2mat(good_plot_data);
-    good_plot_data = good_plot_data(:);
-    good_plot_data = rmoutliers(good_plot_data(~isnan(good_plot_data) & ~isinf(good_plot_data)));
-    %good_plot_data = good_plot_data(~isnan(good_plot_data) & ~isinf(good_plot_data));
-
-    good_resected_plot_data = cellfun(get_data,good_resected_z_score_results,'UniformOutput',false);
-    good_resected_plot_data = cell2mat(good_resected_plot_data);
-    good_resected_plot_data = good_resected_plot_data(:);
-    good_resected_plot_data = rmoutliers(good_resected_plot_data(~isnan(good_resected_plot_data) & ~isinf(good_resected_plot_data)));
-    %good_resected_plot_data = good_resected_plot_data(~isnan(good_resected_plot_data) & ~isinf(good_resected_plot_data));
-
-    histogram(good_plot_data,'Normalization','probability','BinWidth',bin_width);
+    
+    good_scores = {all_patients(good_patient_indices).z_scores};
+    poor_scores = {all_patients(poor_patient_indices).z_scores};
+    
+    data_groups = {'out_out','in_in','in_out'};
+    colors = {'--b','--r','--o'};
+    
     hold on
-    histogram(good_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
+    
+    for k = 1:length(data_groups)
+        
+        get_score_data = @(x) x(test_band).data.(data_groups{k})(triu(true(size(x(test_band).data.(data_groups{k})))));
+        % remove outliers and bottom triangle of data
+        plot_data = cellfun(get_score_data,good_scores,'UniformOutput',false);
+        plot_data = cell2mat(plot_data);
+        plot_data = plot_data(:);
+        plot_data = rmoutliers(plot_data(~isnan(plot_data) & ~isinf(plot_data)));
+        
+        histogram(plot_data,'Normalization','probability','BinWidth',bin_width);
+        
+        xline(mean(plot_data),colors{k},'LineWidth',1);
+        
+    end
     title({sprintf('Z-scores of connectivity strengths in good outcome patients (band %d)',test_band),''})
     ylabel('Density')
     xlabel('Z-score')
     % draw lines representing the medians of both groups
-    xline(mean(good_plot_data),'b','LineWidth',2);
-    xline(mean(good_resected_plot_data),'r','LineWidth',2);
-    legend('Non-resected regions','Resected regions','Non-resected mean','Resected mean')
+    
+    legend('OUT-OUT','OUT-OUT mean','IN-IN','IN-IN mean','IN-OUT','IN-OUT mean')
     legend('Location','northeast','Box','off')
     % set(gca,'YScale','log')
     hold off
@@ -236,152 +209,103 @@ for test_band = 1:5
     % plot ALL z-score results for POOR outcome patients
     % remove outliers and bottom triangle of data
     subplot(1,2,2)
-    poor_plot_data = cellfun(get_data,poor_z_score_results,'UniformOutput',false);
-    poor_plot_data = cell2mat(poor_plot_data);
-    poor_plot_data = poor_plot_data(:);
-    poor_plot_data = rmoutliers(poor_plot_data(~isnan(poor_plot_data) & ~isinf(poor_plot_data)));
-    %poor_plot_data = poor_plot_data(~isnan(poor_plot_data) & ~isinf(poor_plot_data));
-
-    poor_resected_plot_data = cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false);
-    poor_resected_plot_data = cell2mat(poor_resected_plot_data);
-    poor_resected_plot_data = poor_resected_plot_data(:);
-    poor_resected_plot_data = rmoutliers(poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data)));
-    %poor_resected_plot_data = poor_resected_plot_data(~isnan(poor_resected_plot_data) & ~isinf(poor_resected_plot_data));
-
-    
     hold on
-    histogram(poor_plot_data,'Normalization','probability','BinWidth',bin_width);
-    histogram(poor_resected_plot_data,'Normalization','probability','BinWidth',bin_width); % specify data and number of bins
+    
+    for k = 1:length(data_groups)
+        
+        get_score_data = @(x) x(test_band).data.(data_groups{k})(triu(true(size(x(test_band).data.(data_groups{k})))));
+        % remove outliers and bottom triangle of data
+        plot_data = cellfun(get_score_data,poor_scores,'UniformOutput',false);
+        plot_data = cell2mat(plot_data);
+        plot_data = plot_data(:);
+        plot_data = rmoutliers(plot_data(~isnan(plot_data) & ~isinf(plot_data)));
+        
+        histogram(plot_data,'Normalization','probability','BinWidth',bin_width);
+        
+        xline(mean(plot_data),colors{k},'LineWidth',1);
+        
+    end
     title({sprintf('Z-scores of connectivity strengths in poor outcome patients (band %d)',test_band),''})
     ylabel('Density')
     xlabel('Z-score')
     % draw lines representing the medians of both groups
-    xline(mean(poor_plot_data),'b','LineWidth',2);
-    xline(mean(poor_resected_plot_data),'r','LineWidth',2);
-    legend('Non-resected regions','Resected regions','Non-resected mean','Resected mean')
+    
+    legend('OUT-OUT','OUT-OUT mean','IN-IN','IN-IN mean','IN-OUT','IN-OUT mean')
     legend('Location','northeast','Box','off')
     % set(gca,'YScale','log')
+    hold off
+    
     save_name = sprintf('output/z_score_histogram_band_%d.png',test_band);
     saveas(gcf,save_name) % save plot to output folder
-    hold off
 
-    % Statistical testing on z-score distributions
-    fprintf('\n\n===== TESTS ON BAND %d =====\n', test_band)
-%     fprintf('\n=== Two-sample Kolmogorov-Smirnov test ===\n')
-%     fprintf('H0: Z-scores in non-resected and resected regions come from the same distribution.\n')
-%     [h,p] = kstest2([good_plot_data; poor_plot_data],[good_resected_plot_data; poor_resected_plot_data],'Alpha',0.05);
+    % TODO: Statistical testing on z-score distributions
+%     fprintf('\n\n===== TESTS ON BAND %d =====\n', test_band)
+%     
+%     fprintf('\n=== Wilcoxon rank sum test ===\n')
+%     fprintf('H0: The z-scores of non-resected regions in good and poor outcome patients come from distributions with equal medians.\n')
+%     [p,h] = ranksum(good_plot_data,poor_plot_data,'Alpha',0.05);
 %     fprintf('p-value = %d',p)
 %     if h, fprintf('*'); end
-%     fprintf('\nH0: Z-scores in non-resected and resected regions of good outcome patients come from the same distribution.\n')
-%     [h,p] = kstest2(good_plot_data,good_resected_plot_data,'Alpha',0.05);
+%     fprintf('\nH0: The z-scores of resected regions in good and poor outcome patients come from distributions with equal medians.\n')
+%     [p,h] = ranksum(good_resected_plot_data,poor_resected_plot_data,'Alpha',0.05);
 %     fprintf('p-value = %d',p)
 %     if h, fprintf('*'); end
-%     fprintf('\nH0: Z-scores in non-resected and resected regions of poor outcome patients come from the same distribution.\n')
-%     [h,p] = kstest2(poor_plot_data,poor_resected_plot_data,'Alpha',0.05);
+%     fprintf('\nH0: The median z-scores of non-resected regions and resected regions in good outcome patients are equal.\n')
+%     [p,h] = ranksum(good_resected_plot_data,good_plot_data,'Alpha',0.05);
+%     fprintf('p-value = %d',p)
+%     if h, fprintf('*'); end
+%     fprintf('\nH0: The median z-scores of non-resected regions and resected regions in poor outcome patients are equal.\n')
+%     [p,h] = ranksum(poor_resected_plot_data,poor_plot_data,'Alpha',0.05);
 %     fprintf('p-value = %d',p)
 %     if h, fprintf('*'); end
 
-    fprintf('\n=== Two-sample t-test ===\n')
-    fprintf('H0: The mean z-scores of non-resected regions in good and poor outcome patients are equal.\n')
-    [h,p] = ttest2(good_plot_data,poor_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The mean z-score of resected regions in good and poor outcome patients are equal.\n')
-    [h,p] = ttest2(good_resected_plot_data,poor_resected_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The mean z-scores of non-resected regions and resected regions in good outcome patients are equal.\n')
-    [h,p] = ttest2(good_resected_plot_data,good_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The mean z-scores of non-resected regions and resected regions in poor outcome patients are equal.\n')
-    [h,p] = ttest2(poor_resected_plot_data,poor_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-
-    fprintf('\n=== Welch''s t-test ===\n')
-    fprintf('H0: The mean z-scores of non-resected regions in good and poor outcome patients are equal.\n')
-    [h,p] = ttest2(good_plot_data,poor_plot_data,'Vartype','unequal','Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The mean z-score of resected regions in good and poor outcome patients are equal.\n')
-    [h,p] = ttest2(good_resected_plot_data,poor_resected_plot_data,'Vartype','unequal','Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The mean z-scores of non-resected regions and resected regions in good outcome patients are equal.\n')
-    [h,p] = ttest2(good_resected_plot_data,good_plot_data,'Vartype','unequal','Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The mean z-scores of non-resected regions and resected regions in poor outcome patients are equal.\n')
-    [h,p] = ttest2(poor_resected_plot_data,poor_plot_data,'Vartype','unequal','Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    
-    fprintf('\n=== Wilcoxon rank sum test ===\n')
-    fprintf('H0: The z-scores of non-resected regions in good and poor outcome patients come from distributions with equal medians.\n')
-    [p,h] = ranksum(good_plot_data,poor_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The z-scores of resected regions in good and poor outcome patients come from distributions with equal medians.\n')
-    [p,h] = ranksum(good_resected_plot_data,poor_resected_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The median z-scores of non-resected regions and resected regions in good outcome patients are equal.\n')
-    [p,h] = ranksum(good_resected_plot_data,good_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-    fprintf('\nH0: The median z-scores of non-resected regions and resected regions in poor outcome patients are equal.\n')
-    [p,h] = ranksum(poor_resected_plot_data,poor_plot_data,'Alpha',0.05);
-    fprintf('p-value = %d',p)
-    if h, fprintf('*'); end
-
-    % logistic regression
+    % TODO: logistic regression
     % predictors: distance between mean resected and mean non-resected 
     % z-scores, mean & variance of the distribution of all z scores together
     % response: good or poor outcome
     
-    % helper function
-    get_average_data = @(x) nanmean(x(triu(true(size(x)))));
-    
-    % get distance values for good outcome patients
-    good_distances = cell2mat(cellfun(get_average_data,good_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,good_z_score_results,'UniformOutput',false));
-    
-    % get distance values for poor outcome patients and append them
-    poor_distances = cell2mat(cellfun(get_average_data,poor_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,poor_z_score_results,'UniformOutput',false));
-    
-    % combine two arrays
-    distances = [good_distances; poor_distances];
-    
-    % get mean z-scores
-    good_means = nanmean([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
-    
-    poor_means = nanmean([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
-    
-    z_score_means = [good_means, poor_means];
-    
-    % get variance of z-scores
-    good_variances = nanvar([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
-    
-    poor_variances = nanvar([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
-    
-    z_score_variances = [good_variances, poor_variances];
-    
-    % generate array of outcomes
-    outcomes = categorical([repmat(["good"],1,length(good_patient_indices)), repmat(["poor"],1,length(poor_patient_indices))]).';
-
-    predictors = [distances,z_score_means.',z_score_variances.'];
-    
-    % remove any patients with NaN predictor values
-    good_rows = ~any(isnan(predictors),2);
-    predictors = predictors(good_rows,:);
-    outcomes = outcomes(good_rows,:);
-    
-    % perform logistic regression
-    [B,dev,stats] = mnrfit(predictors,outcomes.','Model','hierarchical');
-    mnr_results(test_band,:) = {B,dev,stats};
-    
-    mdl = fitglm(predictors,outcomes,'Distribution','binomial','Link','logit');
-    mdl_results(test_band) = {mdl};
+%     % helper function
+%     get_average_data = @(x) nanmean(x(triu(true(size(x)))));
+%     
+%     % get distance values for good outcome patients
+%     good_distances = cell2mat(cellfun(get_average_data,good_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,good_z_score_results,'UniformOutput',false));
+%     
+%     % get distance values for poor outcome patients and append them
+%     poor_distances = cell2mat(cellfun(get_average_data,poor_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,poor_z_score_results,'UniformOutput',false));
+%     
+%     % combine two arrays
+%     distances = [good_distances; poor_distances];
+%     
+%     % get mean z-scores
+%     good_means = nanmean([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
+%     
+%     poor_means = nanmean([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
+%     
+%     z_score_means = [good_means, poor_means];
+%     
+%     % get variance of z-scores
+%     good_variances = nanvar([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
+%     
+%     poor_variances = nanvar([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
+%     
+%     z_score_variances = [good_variances, poor_variances];
+%     
+%     % generate array of outcomes
+%     outcomes = categorical([repmat(["good"],1,length(good_patient_indices)), repmat(["poor"],1,length(poor_patient_indices))]).';
+% 
+%     predictors = [distances,z_score_means.',z_score_variances.'];
+%     
+%     % remove any patients with NaN predictor values
+%     good_rows = ~any(isnan(predictors),2);
+%     predictors = predictors(good_rows,:);
+%     outcomes = outcomes(good_rows,:);
+%     
+%     % perform logistic regression
+%     [B,dev,stats] = mnrfit(predictors,outcomes.','Model','hierarchical');
+%     mnr_results(test_band,:) = {B,dev,stats};
+%     
+%     mdl = fitglm(predictors,outcomes,'Distribution','binomial','Link','logit');
+%     mdl_results(test_band) = {mdl};
     
     close all
 end
