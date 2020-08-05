@@ -12,9 +12,6 @@ clear all
 
 band_names = {'broadband','alpha-theta','beta','low-gamma','high-gamma'};
 
-% suppress warning
-warning('OFF', 'MATLAB:table:ModifiedAndSavedVarnames')
-
 base_path = '/Users/jbernabei/Documents/PhD_Research/ecog_seeg/ecog_vs_seeg';
 iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas';
 

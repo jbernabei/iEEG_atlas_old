@@ -1,4 +1,4 @@
-function [mean_conn, std_conn, num_samples] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold, silence_output)
+function [mean_conn, std_conn, num_samples, sem_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold, silence_output)
 % [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -121,6 +121,10 @@ std_conn = std(mean_conn,0,3,'omitnan');
 % get the number of samples available for each edge
 num_samples = sum(~isnan(mean_conn),3);
 
+% get the sem
+sem_conn = std_conn./sqrt(num_samples);
+sem_conn(isinf(sem_conn)) = NaN;
+
 % divide out the number of patients element-wise to get the mean matrix
 mean_conn = mean(mean_conn,3,'omitnan');
 
@@ -128,11 +132,14 @@ mean_conn = mean(mean_conn,3,'omitnan');
 % less than the threshold
 mean_conn(num_samples < threshold) = NaN;
 std_conn(num_samples < threshold) = NaN;
+sem_conn(num_samples < threshold) = NaN;
 
 % symmetrize all output matrices
-mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
-std_conn = triu(std_conn) + tril(std_conn.',-1);
-num_samples = triu(num_samples) + tril(num_samples.',-1);
+symmetrize = @(x) triu(x) + tril(x.',-1);
+mean_conn = symmetrize(mean_conn);
+std_conn = symmetrize(std_conn);
+sem_conn = symmetrize(sem_conn);
+num_samples = symmetrize(num_samples);
 
 if ~silence_output, fprintf("\b\b... successfully generated atlas for band %d, threshold = %d.\n",band,threshold); end
 
