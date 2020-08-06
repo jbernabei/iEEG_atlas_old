@@ -89,17 +89,20 @@ saveas(fig,save_name) % save plot to output folder
 
 test_threshold = 3;
 
-num_good_patients = sum([hasData_field{:}] & strcmp(outcome_field,'good'));
-num_poor_patients = sum([hasData_field{:}] & strcmp(outcome_field,'poor'));
+num_good_patients = sum([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
+num_poor_patients = sum([all_patients.hasData] & strcmp({all_patients.outcome},'poor'));
 
-good_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'good'));
-poor_patient_indices = find([hasData_field{:}] & strcmp(outcome_field,'poor'));
+good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
+poor_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor'));
+ablation_indices = find([all_patients.hasData] & strcmp({all_patients.therapy},'Ablation'));
+resection_indices = find([all_patients.hasData] & strcmp({all_patients.therapy},'Resection'));
 
 threshold_results = NaN(num_good_patients,5);
 threshold_accuracies = NaN(num_good_patients,5);
 
 % to hold rank-sum test results
 validation_test_results = cell(5,9);
+abl_res_test_results = cell(12,9);
 
 % to hold logistic regression results
 mnr_results = cell(5,3);
@@ -110,7 +113,6 @@ screen_dims = get(0,'ScreenSize');
 figure_width = 12;
 
 for test_band = 1:5
-    fprintf('\n')
     % cross-validation of good-outcome patients
     for s = 1:length(good_patient_indices)
         test_patient = all_patients(good_patient_indices(s));
@@ -163,6 +165,8 @@ for test_band = 1:5
     %poor_z_score_mean = mean(cat(3,poor_z_score_results{:}),3,'omitnan');
     %poor_resected_z_score_mean = mean(cat(3,poor_resected_z_score_results{:}),3,'omitnan');
 
+    % plot ALL z-score results for GOOD and POOR outcome patients
+        
     figure
     set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, 2, figure_width, 6])
     
@@ -178,8 +182,6 @@ for test_band = 1:5
     titles = {{sprintf('Standardized scores of connectivity strengths\nin good outcome patients (%s)',band_names{test_band}),''}, ...
         {sprintf('Standardized scores of connectivity strengths\nin poor outcome patients (%s)',band_names{test_band}),''}};
     
-    % plot ALL z-score results for GOOD and POOR outcome patients
-    
     for j = 1:length(sub_groups)
         
         subplot(1,2,j)
@@ -188,15 +190,14 @@ for test_band = 1:5
             get_score_data = @(x) x(test_band).data.(edge_groups{k})(triu(true(size(x(test_band).data.(edge_groups{k})))));
             % remove outliers and bottom triangle of data
             plot_data = cellfun(get_score_data,sub_groups{j},'UniformOutput',false);
-            plot_data = cell2mat(plot_data);
-            plot_data = plot_data(:);
-            plot_data = rmoutliers(plot_data(~isnan(plot_data) & ~isinf(plot_data)));
+            plot_data = reshape(cell2mat(plot_data),[],1);
+            plot_data = plot_data(~isnan(plot_data) & ~isinf(plot_data));
 
-            histogram(plot_data,'BinWidth',bin_width);
+            histogram(rmoutliers(plot_data),'BinWidth',bin_width);
             hold on
             
-            % plot mean
-            xline(mean(plot_data),'--','Color',colors{k},'LineWidth',1);
+            % plot median
+            xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
 
         end
         
@@ -204,7 +205,7 @@ for test_band = 1:5
         ylabel('Count')
         xlabel('Score')
 
-        legend('OUT-OUT','OUT-OUT mean','IN-OUT','IN-OUT mean','IN-IN','IN-IN mean')
+        legend('OUT-OUT','OUT-OUT median','IN-OUT','IN-OUT median','IN-IN','IN-IN median')
         legend('Location','northeast','Box','off')
 
         hold off
@@ -220,7 +221,7 @@ for test_band = 1:5
             edge_pair = edge_pairs(k,:);
             distribs = cell(1,2);
             for m = 1:2
-                get_score_data = @(x) x(test_band).data.(edge_pair{m})(triu(true(size(x(test_band).data.(edge_pair{1})))));
+                get_score_data = @(x) x(test_band).data.(edge_pair{m})(triu(true(size(x(test_band).data.(edge_pair{m})))));
                 distrib = cellfun(get_score_data,sub_groups{j},'UniformOutput',false);
                 distrib = cell2mat(distrib);
                 distrib = distrib(:);
@@ -236,7 +237,7 @@ for test_band = 1:5
     for j = 1:length(edge_groups)
         distribs = cell(1,2);
         for m = 1:length(sub_groups)
-            get_score_data = @(x) x(test_band).data.(edge_groups{j})(triu(true(size(x(test_band).data.(edge_pair{1})))));
+            get_score_data = @(x) x(test_band).data.(edge_groups{j})(triu(true(size(x(test_band).data.(edge_groups{j})))));
             distrib = cellfun(get_score_data,sub_groups{m},'UniformOutput',false);
             distrib = cell2mat(distrib);
             distrib = distrib(:);
@@ -246,6 +247,97 @@ for test_band = 1:5
         [p,h] = ranksum(distribs{1},distribs{2},'Alpha',0.05);
             validation_test_results{test_band,j+(length(sub_groups)*(length(edge_pairs)))} = ...
                 sprintf('%.5f%s',p,char(42*h));
+    end
+    
+    % plot results by therapy and outcome type
+        
+    figure
+    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, 1, figure_width, 8])
+    
+    bin_width = 1;
+    
+    good_a_scores = {all_patients(intersect(good_patient_indices,ablation_indices)).z_scores};
+    poor_a_scores = {all_patients(intersect(poor_patient_indices,ablation_indices)).z_scores};
+    good_r_scores = {all_patients(intersect(good_patient_indices,resection_indices)).z_scores};
+    poor_r_scores = {all_patients(intersect(poor_patient_indices,resection_indices)).z_scores};
+    sub_groups = {good_a_scores, poor_a_scores; good_r_scores, poor_r_scores};
+    
+    edge_groups = {'out_out','in_out','in_in'};
+    edge_pairs = {'out_out','in_in';'out_out','in_out';'in_out','in_in'};
+    colors = {'#0072BD','#D95319','#EDB120'};
+    titles = {{sprintf('Good outcome ablation patients (%s)',band_names{test_band}),''}, ...
+        {sprintf('Poor outcome ablation patients (%s)',band_names{test_band}),''}, ...
+        {sprintf('Good outcome resection patients (%s)',band_names{test_band}),''}, ...
+        {sprintf('Poor outcome resection patients (%s)',band_names{test_band}),''}};
+    
+    for j = 1:length(sub_groups(:))
+        
+        subplot(2,2,j)
+        for k = 1:length(edge_groups)
+
+            get_score_data = @(x) x(test_band).data.(edge_groups{k})(triu(true(size(x(test_band).data.(edge_groups{k})))));
+            % remove outliers and bottom triangle of data
+            plot_data = cellfun(get_score_data,sub_groups{j},'UniformOutput',false);
+            plot_data = reshape(cell2mat(plot_data),[],1);
+            plot_data = plot_data(~isnan(plot_data) & ~isinf(plot_data));
+
+            histogram(rmoutliers(plot_data),'BinWidth',bin_width);
+            hold on
+            
+            % plot mean
+            xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
+
+        end
+        
+        title(titles{j})
+        ylabel('Count')
+        xlabel('Score')
+
+        legend('OUT-OUT','OUT-OUT median','IN-OUT','IN-OUT median','IN-IN','IN-IN median')
+        legend('Location','northeast','Box','off')
+
+        hold off
+    end
+    
+    save_name = sprintf('output/supplemental_figures/abl_res_histogram_band_%d.png',test_band);
+    saveas(gcf,save_name) % save plot to output folder
+    
+    % Statistical testing on z-score distributions
+    % test edge type distributions within outcome group
+    for row = 1:length(sub_groups)
+        for j = 1:length(sub_groups)
+            for k = 1:length(edge_pairs)
+                edge_pair = edge_pairs(k,:);
+                distribs = cell(1,2);
+                for m = 1:2
+                    get_score_data = @(x) x(test_band).data.(edge_pair{m})(triu(true(size(x(test_band).data.(edge_pair{m})))));
+                    distrib = cellfun(get_score_data,sub_groups{row,j},'UniformOutput',false);
+                    distrib = cell2mat(distrib);
+                    distrib = distrib(:);
+                    distrib = distrib(~isnan(distrib) & ~isinf(distrib));
+                    distribs{m} = distrib;
+                end
+                [p,h] = ranksum(distribs{1},distribs{2},'Alpha',0.05);
+                abl_res_test_results{1+test_band+(row-1)*6,k+((j-1)*(length(edge_pairs)))} = ...
+                    sprintf('%.5f%s',p,char(42*h));
+                %fprintf('Tested band %d, %s and %s. Row = %d, col = %d. Outputted to (%d,%d)\n',test_band,edge_pair{1},edge_pair{2},row,j,1+test_band+(row-1)*6,k+((j-1)*(length(edge_pairs))))
+            end
+        end
+        % test the same edge type distributions between outcome groups
+        for j = 1:length(edge_groups)
+            distribs = cell(1,2);
+            for m = 1:length(sub_groups)
+                get_score_data = @(x) x(test_band).data.(edge_groups{j})(triu(true(size(x(test_band).data.(edge_groups{j})))));
+                distrib = cellfun(get_score_data,sub_groups{row,m},'UniformOutput',false);
+                distrib = cell2mat(distrib);
+                distrib = distrib(:);
+                distrib = distrib(~isnan(distrib) & ~isinf(distrib));
+                distribs{m} = distrib;
+            end
+            [p,h] = ranksum(distribs{1},distribs{2},'Alpha',0.05);
+                abl_res_test_results{1+test_band+(row-1)*6,j+(length(sub_groups)*(length(edge_pairs)))} = ...
+                    sprintf('%.5f%s',p,char(42*h));
+        end
     end
 
     % TODO: logistic regression
@@ -298,7 +390,6 @@ for test_band = 1:5
     
     close all
 end
-fprintf('\n')
 
 % get average threshold values for each band
 avg_thresholds = nanmean(threshold_results,1);
@@ -310,6 +401,17 @@ validation_test_result_table = cell2table(validation_test_results, ...
     'IN-IN to IN-IN (between)'},'RowNames',band_names);
 
 writetable(validation_test_result_table,'output/supplemental_figures/validation_test_results.xlsx','WriteRowNames',true)
+
+add_char = @(x) [x,':'];
+
+abl_res_test_result_table = cell2table(abl_res_test_results, ...
+    'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
+    'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
+    'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
+    'IN-IN to IN-IN (between)'},'RowNames',[{'Ablation'}, band_names(:)', {'Resection'}, cellfun(add_char,band_names(:)','UniformOutput',false)]);
+
+writetable(validation_test_result_table,'output/supplemental_figures/validation_test_results.xlsx','WriteRowNames',true)
+writetable(abl_res_test_result_table,'output/supplemental_figures/abl_res_test_results.xlsx','WriteRowNames',true)
 
 fprintf('Statistical test results saved.\n')
 
