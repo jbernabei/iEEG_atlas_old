@@ -1,4 +1,4 @@
-function [mean_conn, std_conn, num_samples] = create_atlas_by_edge(all_conn, all_roi, all_resect, region_list, band, threshold)
+function [mean_conn, std_conn, num_samples, sem_conn] = create_atlas_by_edge(all_conn, all_roi, all_resect, region_list, band, threshold)
 % [mean_conn, std_conn] = create_atlas_by_edge(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -45,6 +45,7 @@ num_regions = length(region_list);
 % initialize output arrays
 mean_conn = NaN(num_regions);
 std_conn = NaN(num_regions);
+sem_conn = NaN(num_regions);
 num_samples = NaN(num_regions);
 
 % load in relevant matrices and resected electrodes for each patient
@@ -115,12 +116,13 @@ for i = 1:num_regions % first region
             
         end
         
-        % record mean and std if the number of edges exceeds the threshold
+        % record mean, std, and sem if the number of edges exceeds the threshold
         if sample_counter >= threshold
             % take the average and standard deviation of all edge values for
             % the region pair and place both in the corresponding output arrays
             mean_conn(i,j) = mean(cell2mat(edge_values_for_region_pair));
             std_conn(i,j) = std(cell2mat(edge_values_for_region_pair));
+            sem_conn(i,j) = std_conn(i,j)/sqrt(sample_counter);
         end
         
         % record the number of edges for this region pair
@@ -131,8 +133,10 @@ for i = 1:num_regions % first region
 end
 
 % symmetrize all output matrices
-mean_conn = triu(mean_conn) + tril(mean_conn.',-1);
-std_conn = triu(std_conn) + tril(std_conn.',-1);
-num_samples = triu(num_samples) + tril(num_samples.',-1);
+symmetrize = @(x) triu(x) + tril(x.',-1);
+mean_conn = symmetrize(mean_conn);
+std_conn = symmetrize(std_conn);
+sem_conn = symmetrize(sem_conn);
+num_samples = symmetrize(num_samples);
 
 end

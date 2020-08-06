@@ -1,7 +1,10 @@
-function [z_score_mat, corr_val, residuals] = test_patient_conn(mean_conn, std_conn, region_list, patient_conn, patient_roi)
+function [score_mat, corr_val, residuals] = test_patient_conn(mean_conn, spread_conn, region_list, patient_conn, patient_roi)
 
-% calculate z-score of all edges
-z_score_mat = (patient_conn - mean_conn)./std_conn;
+% output whole z-score matrix if no ROIs are specified
+if ~exist('patient_roi','var'), patient_roi = region_list; end
+
+% calculate standardized score of all edges
+score_mat = (patient_conn - mean_conn)./spread_conn;
 
 % calculate residuals of all edges
 residuals = patient_conn - mean_conn;
@@ -30,8 +33,8 @@ end
 
 % extract z-scores involving relevant regions
 roi_boolean = ismember(region_list,patient_roi);
-z_score_mat(:,~roi_boolean) = NaN;
-z_score_mat(~roi_boolean,:) = NaN;
+score_mat(:,~roi_boolean) = NaN;
+score_mat(~roi_boolean,:) = NaN;
 
 residuals(:,~roi_boolean) = NaN;
 residuals(~roi_boolean,:) = NaN;
