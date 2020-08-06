@@ -1,16 +1,23 @@
-function [out_out_scores,in_in_scores,in_out_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,score_denominator)
+function [out_out_scores,in_in_scores,in_out_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,score_denominator,atlas_method)
 
 % score_denominator is a string that can be either "std" or "sem"
+% atlas_method is a string that can be either "patient" or "edge"
 
 % sets default denominator to "std" if none is given
 if ~exist('score_denominator','var'), score_denominator = "std"; end
+% sets default method to "patient" if none is given
+if ~exist('atlas_method','var'), atlas_method = "patient"; end
 
 % get connectivity atlas of excluded patients
 [mean_conn, std_conn, ~, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
 
 % get connectivity atlas of test patient
-patient_conn = create_atlas({test_patient.conn}, {test_patient.roi}, {[]}, region_list, test_band);
-
+if atlas_method == "edge"
+    patient_conn = create_atlas_by_edge({test_patient.conn}, {test_patient.roi}, {[]}, region_list, test_band);
+else
+    patient_conn = create_atlas({test_patient.conn}, {test_patient.roi}, {[]}, region_list, test_band);
+end
+    
 % test patient
 if score_denominator == "sem"
     score_matrix = test_patient_conn(mean_conn, sem_conn, region_list, patient_conn);

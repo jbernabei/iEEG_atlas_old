@@ -110,7 +110,6 @@ screen_dims = get(0,'ScreenSize');
 figure_width = 12;
 
 for test_band = 1:5
-    fprintf('\n')
     % cross-validation of good-outcome patients
     for s = 1:length(good_patient_indices)
         test_patient = all_patients(good_patient_indices(s));
@@ -220,7 +219,7 @@ for test_band = 1:5
             edge_pair = edge_pairs(k,:);
             distribs = cell(1,2);
             for m = 1:2
-                get_score_data = @(x) x(test_band).data.(edge_pair{m})(triu(true(size(x(test_band).data.(edge_pair{1})))));
+                get_score_data = @(x) x(test_band).data.(edge_pair{m})(triu(true(size(x(test_band).data.(edge_pair{m})))));
                 distrib = cellfun(get_score_data,sub_groups{j},'UniformOutput',false);
                 distrib = cell2mat(distrib);
                 distrib = distrib(:);
@@ -236,7 +235,7 @@ for test_band = 1:5
     for j = 1:length(edge_groups)
         distribs = cell(1,2);
         for m = 1:length(sub_groups)
-            get_score_data = @(x) x(test_band).data.(edge_groups{j})(triu(true(size(x(test_band).data.(edge_pair{1})))));
+            get_score_data = @(x) x(test_band).data.(edge_groups{j})(triu(true(size(x(test_band).data.(edge_groups{j})))));
             distrib = cellfun(get_score_data,sub_groups{m},'UniformOutput',false);
             distrib = cell2mat(distrib);
             distrib = distrib(:);
@@ -298,7 +297,6 @@ for test_band = 1:5
     
     close all
 end
-fprintf('\n')
 
 % get average threshold values for each band
 avg_thresholds = nanmean(threshold_results,1);
