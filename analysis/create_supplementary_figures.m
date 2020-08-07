@@ -22,6 +22,35 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
     implant_field, outcome_field, resect_field, roi_field, target_field,...
     therapy_field, region_list, region_names] = set_up_workspace(iEEG_atlas_path);
 
+%% In this section we derive distance - connectivity relationships for SEEG and ECoG separately
+
+ECoG_indices = find([all_patients.hasData] & strcmp({all_patients.implant},'ECoG') & strcmp({all_patients.outcome},'good'));
+SEEG_indices = find([all_patients.hasData] & strcmp({all_patients.implant},'SEEG') & strcmp({all_patients.outcome},'good'));
+
+ecog_patients = all_patients(ECoG_indices);
+seeg_patients = all_patients(SEEG_indices);
+
+[curve_ECoG, dist_ecog, conn_ecog] = compute_dist_reg({ecog_patients.conn}, {ecog_patients.coords}, {ecog_patients.roi}, {ecog_patients.resect});
+[curve_SEEG, dist_seeg, conn_seeg] = compute_dist_reg({seeg_patients.conn}, {seeg_patients.coords}, {seeg_patients.roi}, {seeg_patients.resect});
+
+x_axis = [2:0.1:200];
+
+for f = 1:5
+y_ecog = (curve_ECoG(f).data.a.*x_axis.^curve_ECoG(f).data.b)+curve_ECoG(f).data.c;
+y_seeg = (curve_SEEG(f).data.a.*x_axis.^curve_SEEG(f).data.b)+curve_SEEG(f).data.c;
+
+figure(f);clf;
+hold on
+plot(dist_ecog(1:50:end), conn_ecog(1:50:end,f),'r.')
+plot(dist_seeg(1:50:end), conn_seeg(1:50:end,f),'b.')
+plot(x_axis, y_ecog,'r-')
+plot(x_axis, y_seeg,'b-')
+legend('ECoG','SEEG','ECoG','SEEG')
+hold off
+
+end
+
+
 %%
 %dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
 %save('output/atlas.edge','good_mean_conn','-ascii');
