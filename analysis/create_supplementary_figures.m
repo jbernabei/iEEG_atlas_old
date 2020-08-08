@@ -30,8 +30,8 @@ SEEG_indices = find([all_patients.hasData] & strcmp({all_patients.implant},'SEEG
 ecog_patients = all_patients(ECoG_indices);
 seeg_patients = all_patients(SEEG_indices);
 
-[curve_ECoG, dist_ecog, conn_ecog] = compute_dist_reg({ecog_patients.conn}, {ecog_patients.coords}, {ecog_patients.roi}, {ecog_patients.resect});
-[curve_SEEG, dist_seeg, conn_seeg] = compute_dist_reg({seeg_patients.conn}, {seeg_patients.coords}, {seeg_patients.roi}, {seeg_patients.resect});
+[curve_ECoG, dist_ecog, conn_ecog, mean_ecog] = compute_dist_reg({ecog_patients.conn}, {ecog_patients.coords}, {ecog_patients.roi}, {ecog_patients.resect});
+[curve_SEEG, dist_seeg, conn_seeg, mean_seeg] = compute_dist_reg({seeg_patients.conn}, {seeg_patients.coords}, {seeg_patients.roi}, {seeg_patients.resect});
 
 x_axis = [2:0.1:200];
 
@@ -50,6 +50,14 @@ hold off
 
 end
 
+%% Find mean connectivity in each band in each patient
+for f = 1:5
+    figure(f);clf;
+    subplot(2,1,1)
+    plot(mean_ecog(:,f),'ko')
+    subplot(2,1,2)
+    plot(mean_seeg(:,f),'ko')
+end
 
 %%
 %dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)

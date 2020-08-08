@@ -1,4 +1,4 @@
-function [curve, dist_data, conn_data] = compute_dist_reg(adj_matrices, mni_coordinates, patient_roi, resected_elecs)
+function [curve, dist_data, conn_data, mean_conn] = compute_dist_reg(adj_matrices, mni_coordinates, patient_roi, resected_elecs)
     
     all_conn = []; % initialize elec x 5 freq
     all_dist = [];
@@ -41,6 +41,7 @@ function [curve, dist_data, conn_data] = compute_dist_reg(adj_matrices, mni_coor
             adj(bad_inds,:) = [];
             adj(:,bad_inds) = [];
             pt_conn(:,f) = adj(:);
+            mean_conn(pt,f) = mean(adj(:));
         end
         
         all_conn = [all_conn;pt_conn];
