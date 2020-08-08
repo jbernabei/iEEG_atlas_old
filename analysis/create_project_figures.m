@@ -1060,8 +1060,10 @@ end
 % across frequency bands. Use dice score for localization quality
 
 % apply in good outcome patients
+[good_pt_dice] = localize_EZ_atlas(z_score_mat, pt_roi, resected_elecs, mni_coordinates);
 
 % apply in poor outcome patients
+[poor_pt_dice] = localize_EZ_atlas(z_score_mat, pt_roi, resected_elecs, mni_coordinates);
 
 % quantify and compare results
 
