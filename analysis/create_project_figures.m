@@ -531,91 +531,113 @@ clear('vars')
 fprintf('\n')
 
 % exclude RNS patients
-cond = [hasData_field{:}] & (strcmp(outcome_field,'good') | strcmp(outcome_field,'poor'));
-
+cond = [all_patients.hasData] & (strcmp({all_patients.outcome},'good') | strcmp({all_patients.outcome},'poor'));
 all_outcome_patients = all_patients(cond);
-
 counter = 0;
 
-for k = 1:length(all_outcome_patients)
-    % save z-score data to a .mat file
-    dat = all_outcome_patients(k).z_scores;
-    patientID = all_outcome_patients(k).patientID;
-    
-    line_length = fprintf('Generating plots for %s...', patientID);
-    
-    % create folder for the patient if one does not exist
-    if ~exist(sprintf('output/patient_specific/%s',patientID), 'dir')
-       mkdir(sprintf('output/patient_specific/%s',patientID))
-    end
-    
-    save(sprintf('output/patient_specific/%s/%s_z_scores.mat',patientID,patientID),'dat')
-    
-    % generate figure with a z-score histogram for each band
-    fig = figure;
-    fig.WindowState = 'maximized';
-    get_triu_data = @(x) x(triu(true(size(x))));
-    bin_width = 0.2;
-    
-    for test_band = 1:5
-        
-        subplot(2,3,test_band)
-        
-        non_resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.non_resected);
-        resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.resected);
+% run all good outcome patients in atlas to get sqrt(n) for each edge
+cond = [all_patients.hasData] & strcmp({all_patients.outcome},'good');
+[~, ~, num_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+resect_field(cond), region_list, 1, 3);
 
-        % remove NaN values
-        non_resected_scores = non_resected_scores(~isnan(non_resected_scores) & ~isinf(non_resected_scores));
-        resected_scores = resected_scores(~isnan(resected_scores) & ~isinf(resected_scores));
-        
-        % default p-value to display
-        p = NaN;
-        % test fails by default
-        h = 0;
-        % get Mann-Whitney p-value
-        if ~(isempty(non_resected_scores) || isempty(resected_scores)), [p,h] = ranksum(non_resected_scores,resected_scores,'Alpha',0.05); end
-        
-        legend_entries = {};
-        if ~isempty(non_resected_scores)
-            histogram(non_resected_scores,'Normalization','probability','BinWidth',bin_width);
-            xline(mean(non_resected_scores),'b','LineWidth',2);
-            legend_entries = {sprintf('Non-resected regions (n=%d)',length(non_resected_scores)),'Non-resected mean'};
+denominators = {ones(length(region_list)), sqrt(num_conn)};
+names = {'z','sem'};
+
+for d = 1:length(denominators)
+    fprintf('Plotting %s-scores:',names{d})
+    for k = 1:length(all_outcome_patients)
+        % save score data to a .mat file
+        dat = all_outcome_patients(k).z_scores;
+        patientID = all_outcome_patients(k).patientID;
+
+        line_length = fprintf('Generating plots for %s...', patientID);
+
+        % create folder for the patient if one does not exist
+        if ~exist(sprintf('output/patient_specific/%s',patientID), 'dir')
+           mkdir(sprintf('output/patient_specific/%s',patientID))
         end
-        if ~isempty(resected_scores)
-            hold on
-            histogram(resected_scores,'Normalization','probability','BinWidth',bin_width);
-            xline(mean(resected_scores),'r','LineWidth',2);
-            legend_entries = [legend_entries,{sprintf('Resected regions (n=%d)',length(resected_scores)),'Resected mean'}];
+
+        save(sprintf('output/patient_specific/%s/%s_%s_scores.mat',patientID,patientID,names{d}),'dat')
+
+        % generate figure with a score histogram for each band
+        fig = figure;
+        fig.WindowState = 'maximized';
+        get_triu_data = @(x) x(triu(true(size(x))));
+        bin_width = 1;
+
+        for test_band = 1:5
+
+            subplot(2,3,test_band)
+
+            out_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.out_out./denominators{d});
+            in_in_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.in_in./denominators{d});
+            in_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.in_out./denominators{d});
+
+            % remove NaN values
+            out_out_scores = out_out_scores(~isnan(out_out_scores) & ~isinf(out_out_scores));
+            in_in_scores = in_in_scores(~isnan(in_in_scores) & ~isinf(in_in_scores));
+            in_out_scores = in_out_scores(~isnan(in_out_scores) & ~isinf(in_out_scores));
+
+            % default p-value to display
+            p = NaN;
+            % test fails by default
+            h = 0;
+            % get Kruskal-Wallis p-value
+            groups = [repmat({'out-out'},1,length(out_out_scores)),repmat({'in-out'},1,length(in_out_scores)),repmat({'in-in'},1,length(in_in_scores))];
+            if sum([isempty(out_out_scores),isempty(in_in_scores),isempty(in_out_scores)]) < 2, p = kruskalwallis([out_out_scores;in_out_scores;in_in_scores],groups,'off'); end
+            if p < 0.05, h = 1; end
+
+            legend_entries = {};
+            if ~isempty(out_out_scores)
+                histogram(rmoutliers(out_out_scores),'BinWidth',bin_width);
+                xline(median(out_out_scores),'--','Color','#0072BD','LineWidth',1);
+                legend_entries = {sprintf('OUT-OUT regions (n=%d)',length(out_out_scores)),'OUT-OUT median'};
+            end
+            if ~isempty(in_out_scores)
+                hold on
+                histogram(rmoutliers(in_out_scores),'BinWidth',bin_width);
+                xline(median(in_out_scores),'--','Color','#D95319','LineWidth',1);
+                legend_entries = [legend_entries,{sprintf('IN-OUT regions (n=%d)',length(in_out_scores)),'IN-OUT median'}];
+            end
+            if ~isempty(in_in_scores)
+                hold on
+                histogram(rmoutliers(in_in_scores),'BinWidth',bin_width);
+                xline(median(in_in_scores),'--','Color','#EDB120','LineWidth',1);
+                legend_entries = [legend_entries,{sprintf('IN-IN regions (n=%d)',length(in_in_scores)),'IN-IN median'}];
+            end
+            title({sprintf('%s, p = %.5f%s',band_names{test_band},p,char(42*h)),''})
+            ylabel('Count')
+            xlabel(sprintf('%s-score',names{d}))
+            if ~isempty(legend_entries), legend(legend_entries); end
+            legend('Location','northeast','Box','off')
+            hold off
         end
-        title({sprintf('%s, p = %.5f%s',band_names{test_band},p,char(42*h)),''})
-        ylabel('Density')
-        xlabel('Z-score')
-        if ~isempty(legend_entries), legend(legend_entries); end
-        legend('Location','northeast','Box','off')
-        hold off
-    end
-    sgtitle({sprintf('%s: z-scores of connectivity strengths by band',patientID),sprintf('Surgical outcome: %s',all_outcome_patients(k).outcome),sprintf('Targeted region: %s',all_outcome_patients(k).target)},'FontSize',10)
-    saveas(gcf,sprintf('output/patient_specific/%s/%s_z_score_histograms.png',patientID,patientID)) % save plot to output folder
-    close all
-    
-    if isempty(non_resected_scores)
-        fprintf(' (no non-resected z-scores)')
-    end
-    
-    if isempty(resected_scores)
-        fprintf(' (no resected z-scores)')
-    end
-    
-    if ~(isempty(resected_scores) || isempty(non_resected_scores))
-        fprintf(repmat('\b',1,line_length))
-    else
-        fprintf('\n')
-        counter = counter + 1;
+        sgtitle({sprintf('%s: scores of connectivity strengths by band',patientID),sprintf('Surgical outcome: %s',all_outcome_patients(k).outcome),sprintf('Targeted region: %s',all_outcome_patients(k).target),sprintf('Implant type: %s',all_outcome_patients(k).implant)},'FontSize',10)
+        saveas(gcf,sprintf('output/patient_specific/%s/%s_%s_score_histograms.png',patientID,patientID,names{d})) % save plot to output folder
+        close all
+
+        if isempty(out_out_scores)
+            fprintf(' (no out-out scores)')
+        end
+
+        if isempty(in_out_scores)
+            fprintf(' (no in-out scores)')
+        end
+
+        if isempty(in_in_scores)
+            fprintf(' (no in-in scores)')
+        end
+
+        if ~(isempty(in_in_scores) || isempty(in_out_scores) || isempty(out_out_scores))
+            fprintf(repmat('\b',1,line_length))
+        else
+            fprintf('\n')
+            counter = counter + 1;
+        end
     end
 end
-
-fprintf('Total number of patients with missing data: %d\n',counter)
-
+fprintf('Total number of patients with missing data: %d\n',counter/2)
+hold off
 %% visualizing p-values by individual
 fprintf('\n')
 
@@ -636,22 +658,22 @@ for k = 1:length(all_outcome_patients)
     
     for test_band = 1:5
         
-        non_resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.non_resected);
-        resected_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.resected);
+        out_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.non_resected);
+        in_in_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.resected);
 
         % remove NaN values
-        non_resected_scores = non_resected_scores(~isnan(non_resected_scores) & ~isinf(non_resected_scores));
-        resected_scores = resected_scores(~isnan(resected_scores) & ~isinf(resected_scores));
+        out_out_scores = out_out_scores(~isnan(out_out_scores) & ~isinf(out_out_scores));
+        in_in_scores = in_in_scores(~isnan(in_in_scores) & ~isinf(in_in_scores));
         
         % default p-value to display
         p = NaN;
         % test fails by default
         h = 0;
         % get Mann-Whitney p-value
-        if ~(isempty(non_resected_scores) || isempty(resected_scores))
-            [p,h] = ranksum(non_resected_scores,resected_scores,'Alpha',0.05);
+        if ~(isempty(out_out_scores) || isempty(in_in_scores))
+            [p,h] = ranksum(out_out_scores,in_in_scores,'Alpha',0.05);
             % also, calculate the difference between the means
-            distance(test_band,k) = mean(resected_scores) - mean(non_resected_scores);
+            distance(test_band,k) = mean(in_in_scores) - mean(out_out_scores);
         end
         
         % add p-value to visualiztion matrix
@@ -659,7 +681,7 @@ for k = 1:length(all_outcome_patients)
         
         % add direction of distance between the resected and non-resected
         % means
-        direction(test_band,k) = (median(resected_scores) - median(non_resected_scores) > 0);
+        direction(test_band,k) = (median(in_in_scores) - median(out_out_scores) > 0);
         
     end
     fprintf(repmat('\b',1,line_length))
