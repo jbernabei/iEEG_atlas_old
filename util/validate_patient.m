@@ -1,4 +1,4 @@
-function [out_out_scores,in_in_scores,in_out_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,score_denominator,atlas_method)
+function [out_out_scores, in_in_scores, in_out_scores, all_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,score_denominator,atlas_method)
 
 % score_denominator is a string that can be either "std" or "sem"
 % atlas_method is a string that can be either "patient" or "edge"
@@ -52,6 +52,8 @@ type_matrix(:,res_indices) = type_matrix(:,res_indices)-1;
 type_matrix = floor(type_matrix./2);
 
 % output matrices
+all_scores = score_matrix; % added output of all scores
+
 out_out_scores = score_matrix;
 out_out_scores(~logical(logical(type_matrix)+type_matrix)) = NaN;
 

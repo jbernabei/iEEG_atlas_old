@@ -30,6 +30,7 @@ function [curve, dist_data, conn_data, mean_conn] = compute_dist_reg(adj_matrice
             end
         end
         
+        
         bad_inds = [find(pt_roi>9000), find(pt_roi==0), pt_res_elecs(:)'];
         pt_dist(bad_inds,:) = [];
         pt_dist(:,bad_inds) = [];

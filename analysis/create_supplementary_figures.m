@@ -50,6 +50,11 @@ hold off
 
 end
 
+%% Create atlas distance matrices and save to patient specific folder
+
+[atlas_mni, distance_matrices_ecog] = create_distance_matrix({ecog_patients.coords}, all_inds(1:90));
+[atlas_mni, distance_matrices_seeg] = create_distance_matrix({seeg_patients.coords}, all_inds(1:90));
+
 %% Find mean connectivity in each band in each patient
 for f = 1:5
     figure(f);clf;
@@ -58,6 +63,68 @@ for f = 1:5
     subplot(2,1,2)
     plot(mean_seeg(:,f),'ko')
 end
+
+%% construct adjacency matrix of all good outcome patients
+
+set(0,'units','inches')
+screen_dims = get(0,'ScreenSize');
+figure_width = 10;
+
+% initializing cell arrays
+good_mean_conn = cell(1,5);
+good_std_conn = cell(1,5);
+
+% minimum sample size for an edge weight to be included in the atlas
+test_threshold = 3;
+
+for f = 1:5
+    test_band = f;
+
+    % run all good outcome patients in atlas
+    cond = [hasData_field{:}] & strcmp(outcome_field,'good');
+    [good_mean_conn{f}, good_std_conn{f}, num_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
+    resect_field(cond), region_list, test_band, test_threshold);
+
+    % visualize adjacency matrices with labels added
+    figure(f+1);clf;
+    fig = gcf;
+    set(fig,'defaultAxesTickLabelInterpreter','none'); 
+    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+    imagesc(good_mean_conn{f},'AlphaData',~isnan(good_mean_conn{f}))
+    axis(gca,'equal');
+    set(gca,'color',0*[1 1 1]);
+    set(gca,'xtick',(1:90),'xticklabel',all_locs)
+    xtickangle(45)
+    set(gca,'ytick',(1:90),'yticklabel',all_locs)
+    set(gca,'fontsize', 4)
+    cb = colorbar;
+    cb.FontSize = 8;
+    title(sprintf('Connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
+    save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_atlas_band_%d.png',test_band);
+    fig.InvertHardcopy = 'off';
+    saveas(fig,save_name) % save plot to output folder
+end
+
+save('output/good_outcome_pt_atlas.mat','good_mean_conn','good_std_conn')
+
+%% Figure 1B: visualize number of patients with each connection
+figure(1);clf
+fig = gcf;
+set(fig,'defaultAxesTickLabelInterpreter','none'); 
+set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
+imagesc(num_conn,'AlphaData',~(num_conn==0))
+axis(gca,'equal');
+set(gca,'color',0*[1 1 1]);
+set(gca,'xtick',(1:90),'xticklabel',all_locs)
+xtickangle(45)
+set(gca,'ytick',(1:90),'yticklabel',all_locs)
+set(gca,'fontsize', 4)
+cb = colorbar;
+cb.FontSize = 8;
+title(sprintf('Sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
+save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_sample_sizes.png');
+fig.InvertHardcopy = 'off';
+saveas(fig,save_name) % save plot to output folder
 
 %%
 %dlmwrite('output/render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
@@ -113,3 +180,41 @@ end
 %     save_name = sprintf('output/samples_available_%d.png',a);
 %     saveas(gcf,save_name)
 % end
+
+%% Clinical hypothesis testing
+
+% part 1
+% assemble set of bilateral (RNS) patients, and test whether they have
+% higher inter-hemispheric z scores compared to unilateral good outcome
+% patients
+bilateral_pt_indices = find([hasData_field{:}] & strcmp(therapy_field,'RNS'));
+num_bilateral_pts = length(bilateral_pt_indices);
+bilateral_z_score_results = cell(num_bilateral_pts,1);
+
+% define checkerboard matrices for extracting inter/intra hemispheric
+% connections (odd-odd and even-even conns are intra, odd-even and even-odd conns are inter)
+inter_hemisphere_conns = zeros(91*91,1); inter_hemisphere_conns(1:2:end) = 1;
+inter_hemisphere_conns = reshape(inter_hemisphere_conns,[91,91]);
+inter_hemisphere_conns(end,:) = []; inter_hemisphere_conns(:,end) = [];
+
+intra_hemisphere_conns = zeros(91*91,1); intra_hemisphere_conns(2:2:end) = 1;
+intra_hemisphere_conns = reshape(intra_hemisphere_conns,[91,91]);
+intra_hemisphere_conns(end,:) = []; intra_hemisphere_conns(:,end) = [];
+
+for test_band = 1:5
+    for s = 1:length(bilateral_pt_indices)
+        test_patient = all_patients(bilateral_pt_indices(s));
+
+         % get connectivity atlas of test patient
+         [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
+
+         % get non-resected region labels of test patient
+         [~, patient_roi, ~] = nifti_values(test_patient.coords,'localization/AAL116_WM.nii');
+
+         % test atlas
+         bilateral_z_score_results{s} = test_patient_conn(good_mean_conn{test_band}, good_std_conn{test_band}, region_list, patient_conn, patient_roi);
+         
+         interhemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(inter_hemisphere_conns)));
+         intrahemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(intra_hemisphere_conns)));
+    end
+end

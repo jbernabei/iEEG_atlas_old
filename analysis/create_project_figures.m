@@ -23,68 +23,6 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
 
 create_data_table(all_patients, hasData_field);
 
-%% Figure 1A: construct adjacency matrix of all good outcome patients
-
-set(0,'units','inches')
-screen_dims = get(0,'ScreenSize');
-figure_width = 10;
-
-% initializing cell arrays
-good_mean_conn = cell(1,5);
-good_std_conn = cell(1,5);
-
-% minimum sample size for an edge weight to be included in the atlas
-test_threshold = 3;
-
-for f = 1:5
-    test_band = f;
-
-    % run all good outcome patients in atlas
-    cond = [hasData_field{:}] & strcmp(outcome_field,'good');
-    [good_mean_conn{f}, good_std_conn{f}, num_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
-    resect_field(cond), region_list, test_band, test_threshold);
-
-    % visualize adjacency matrices with labels added
-    figure(f+1);clf;
-    fig = gcf;
-    set(fig,'defaultAxesTickLabelInterpreter','none'); 
-    set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
-    imagesc(good_mean_conn{f},'AlphaData',~isnan(good_mean_conn{f}))
-    axis(gca,'equal');
-    set(gca,'color',0*[1 1 1]);
-    set(gca,'xtick',(1:90),'xticklabel',all_locs)
-    xtickangle(45)
-    set(gca,'ytick',(1:90),'yticklabel',all_locs)
-    set(gca,'fontsize', 4)
-    cb = colorbar;
-    cb.FontSize = 8;
-    title(sprintf('Connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
-    save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_atlas_band_%d.png',test_band);
-    fig.InvertHardcopy = 'off';
-    saveas(fig,save_name) % save plot to output folder
-end
-
-save('output/good_outcome_pt_atlas.mat','good_mean_conn','good_std_conn')
-
-%% Figure 1B: visualize number of patients with each connection
-figure(1);clf
-fig = gcf;
-set(fig,'defaultAxesTickLabelInterpreter','none'); 
-set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
-imagesc(num_conn,'AlphaData',~(num_conn==0))
-axis(gca,'equal');
-set(gca,'color',0*[1 1 1]);
-set(gca,'xtick',(1:90),'xticklabel',all_locs)
-xtickangle(45)
-set(gca,'ytick',(1:90),'yticklabel',all_locs)
-set(gca,'fontsize', 4)
-cb = colorbar;
-cb.FontSize = 8;
-title(sprintf('Sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
-save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_sample_sizes.png');
-fig.InvertHardcopy = 'off';
-saveas(fig,save_name) % save plot to output folder
-
 %% Figure 2B: cross - validate out-of-bag predictions
 
 test_threshold = 3;
@@ -125,23 +63,25 @@ for atlas_method = ["patient","edge"]
 
             line_length = fprintf('Testing %s...', test_patient.patientID);
 
-            [out_out_scores,in_in_scores,in_out_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem",atlas_method);
+            [out_out_scores ,in_in_scores, in_out_scores, all_scores] =...
+                validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem",atlas_method);
 
+            % get all good outcome patient zscores
+            all_patient_zscores(good_patient_indices(s)).freq(test_band).data = all_scores;
+            
             % place results into all_patients
             all_patients(good_patient_indices(s)).z_scores(test_band).data.out_out = out_out_scores;
             all_patients(good_patient_indices(s)).z_scores(test_band).data.in_in = in_in_scores;
             all_patients(good_patient_indices(s)).z_scores(test_band).data.in_out = in_out_scores;
 
             if strcmp(test_patient.therapy,'Ablation')
-                [threshold_results(s,test_band),threshold_accuracies(s,test_band)] = get_optimal_threshold(out_out_scores,in_in_scores);
+                [threshold_results(s,test_band),threshold_accuracies(s,test_band)] =...
+                    get_optimal_threshold(out_out_scores,in_in_scores);
             end
 
             fprintf(repmat('\b',1,line_length))
 
         end
-
-        %good_z_score_mean = nanmean(cat(3,good_z_score_results{:}),3);
-        %good_resected_z_score_mean = nanmean(cat(3,good_resected_z_score_results{:}),3);
 
         % repeat cross-validation for poor outcome patients
 
@@ -155,8 +95,12 @@ for atlas_method = ["patient","edge"]
 
             line_length = fprintf('Testing %s...', test_patient.patientID);
 
-            [out_out_scores,in_in_scores,in_out_scores] = validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem",atlas_method);
+            [out_out_scores, in_in_scores, in_out_scores ,all_scores] = ...
+                validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem",atlas_method);
 
+            % get all poor outcome patient zscores
+            all_patient_zscores(poor_patient_indices(s)).freq(test_band).data = all_scores;
+            
             % place results into all_patients
             all_patients(poor_patient_indices(s)).z_scores(test_band).data.out_out = out_out_scores;
             all_patients(poor_patient_indices(s)).z_scores(test_band).data.in_in = in_in_scores;
@@ -165,9 +109,6 @@ for atlas_method = ["patient","edge"]
             fprintf(repmat('\b',1,line_length))
 
         end
-
-        %poor_z_score_mean = mean(cat(3,poor_z_score_results{:}),3,'omitnan');
-        %poor_resected_z_score_mean = mean(cat(3,poor_resected_z_score_results{:}),3,'omitnan');
 
         % plot ALL z-score results for GOOD and POOR outcome patients
 
@@ -918,44 +859,6 @@ saveas(gcf,'output/roc_results.png') % save plot to output folder
 hold off
 
 %% Clinical hypothesis testing
-
-% part 1
-% assemble set of bilateral (RNS) patients, and test whether they have
-% higher inter-hemispheric z scores compared to unilateral good outcome
-% patients
-bilateral_pt_indices = find([hasData_field{:}] & strcmp(therapy_field,'RNS'));
-num_bilateral_pts = length(bilateral_pt_indices);
-bilateral_z_score_results = cell(num_bilateral_pts,1);
-
-% define checkerboard matrices for extracting inter/intra hemispheric
-% connections (odd-odd and even-even conns are intra, odd-even and even-odd conns are inter)
-inter_hemisphere_conns = zeros(91*91,1); inter_hemisphere_conns(1:2:end) = 1;
-inter_hemisphere_conns = reshape(inter_hemisphere_conns,[91,91]);
-inter_hemisphere_conns(end,:) = []; inter_hemisphere_conns(:,end) = [];
-
-intra_hemisphere_conns = zeros(91*91,1); intra_hemisphere_conns(2:2:end) = 1;
-intra_hemisphere_conns = reshape(intra_hemisphere_conns,[91,91]);
-intra_hemisphere_conns(end,:) = []; intra_hemisphere_conns(:,end) = [];
-
-for test_band = 1:5
-    for s = 1:length(bilateral_pt_indices)
-        test_patient = all_patients(bilateral_pt_indices(s));
-
-         % get connectivity atlas of test patient
-         [patient_conn, patient_std] = create_atlas({test_patient.conn}, {test_patient.roi}, {test_patient.resect}, region_list, test_band);
-
-         % get non-resected region labels of test patient
-         [~, patient_roi, ~] = nifti_values(test_patient.coords,'localization/AAL116_WM.nii');
-
-         % test atlas
-         bilateral_z_score_results{s} = test_patient_conn(good_mean_conn{test_band}, good_std_conn{test_band}, region_list, patient_conn, patient_roi);
-         
-         interhemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(inter_hemisphere_conns)));
-         intrahemispheric_results(test_band,s) = nanmean(bilateral_z_score_results{s}(find(intra_hemisphere_conns)));
-    end
-end
-
-%% Clinical hypothesis testing
 % here we will simulate how the atlas could be used in a prospective manner
 
 patient_hypothesis_list = {'HUP116','HUP117','HUP130','HUP138','HUP139','HUP140',...
@@ -1006,7 +909,7 @@ for s = 1:length(patient_hypothesis_list)
     % step 3 generate rendering of brain with primary/secondary regions labeled 
     % by colored nodes and all edge weights rendered
     
-    [atlas_mni] = create_distance_matrix({test_patient.coords}, region_list);
+    [atlas_mni, distance_matrices] = create_distance_matrix({test_patient.coords}, region_list);
     
     node_color = zeros(90,1);
     node_color(ROI_primary,1) = -1; % sets to blue
@@ -1059,13 +962,26 @@ end
 %% algorithm for identifying targets from full patient connectivity
 % across frequency bands. Use dice score for localization quality
 
+% (fix this stuff)
+
+
+good_cond = [hasData_field{:}] & (strcmp(outcome_field,'good'));
+good_outcome_patients = all_patients(good_cond);
+
+poor_cond = [hasData_field{:}] & (strcmp(outcome_field,'poor'));
+poor_outcome_patients = all_patients(poor_cond);
+
 % apply in good outcome patients
-[good_pt_dice] = localize_EZ_atlas(z_score_mat, pt_roi, resected_elecs, mni_coordinates);
+[good_pt_dice] = localize_EZ_atlas(z_score_mat, {good_outcome_patients.roi}, {good_outcome_patients.resect}, {good_outcome_patients.coords});
 
 % apply in poor outcome patients
-[poor_pt_dice] = localize_EZ_atlas(z_score_mat, pt_roi, resected_elecs, mni_coordinates);
+[poor_pt_dice] = localize_EZ_atlas(z_score_mat, {good_outcome_patients.roi}, {good_outcome_patients.resect}, {good_outcome_patients.coords});
 
 % quantify and compare results
+
+%% Spatial extent of atlas -> correlation to outcome
+% use modularity to quantify communities of 'abnormal' connectivity and
+% find the spatial extent (mean interregional distance)
 
 %% testing create_atlas_by_edge
 test_band = 1;
