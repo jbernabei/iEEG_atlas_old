@@ -115,7 +115,7 @@ set(0,'units','inches')
 screen_dims = get(0,'ScreenSize');
 figure_width = 12;
 
-for atlas_method = ["patient","edge"]
+for atlas_method = ["edge","patient"]
     for test_band = 1:5
         % cross-validation of good-outcome patients
         for s = 1:length(good_patient_indices)
@@ -540,11 +540,11 @@ cond = [all_patients.hasData] & strcmp({all_patients.outcome},'good');
 [~, ~, num_conn] = create_atlas(conn_field(cond), roi_field(cond), ...
 resect_field(cond), region_list, 1, 3);
 
-denominators = {ones(length(region_list)), sqrt(num_conn)};
+factors = {sqrt(num_conn),ones(length(region_list))};
 names = {'z','sem'};
 
-for d = 1:length(denominators)
-    fprintf('Plotting %s-scores:',names{d})
+for d = 1:length(factors)
+    fprintf('Plotting %s-scores:\n',names{d})
     for k = 1:length(all_outcome_patients)
         % save score data to a .mat file
         dat = all_outcome_patients(k).z_scores;
@@ -569,9 +569,9 @@ for d = 1:length(denominators)
 
             subplot(2,3,test_band)
 
-            out_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.out_out./denominators{d});
-            in_in_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.in_in./denominators{d});
-            in_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.in_out./denominators{d});
+            out_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.out_out./factors{d});
+            in_in_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.in_in./factors{d});
+            in_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.in_out./factors{d});
 
             % remove NaN values
             out_out_scores = out_out_scores(~isnan(out_out_scores) & ~isinf(out_out_scores));
@@ -658,8 +658,8 @@ for k = 1:length(all_outcome_patients)
     
     for test_band = 1:5
         
-        out_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.non_resected);
-        in_in_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.resected);
+        out_out_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.out_out);
+        in_in_scores = get_triu_data(all_outcome_patients(k).z_scores(test_band).data.in_in);
 
         % remove NaN values
         out_out_scores = out_out_scores(~isnan(out_out_scores) & ~isinf(out_out_scores));
@@ -672,8 +672,8 @@ for k = 1:length(all_outcome_patients)
         % get Mann-Whitney p-value
         if ~(isempty(out_out_scores) || isempty(in_in_scores))
             [p,h] = ranksum(out_out_scores,in_in_scores,'Alpha',0.05);
-            % also, calculate the difference between the means
-            distance(test_band,k) = mean(in_in_scores) - mean(out_out_scores);
+            % also, calculate the difference between the medians
+            distance(test_band,k) = median(in_in_scores) - median(out_out_scores);
         end
         
         % add p-value to visualiztion matrix
@@ -681,7 +681,7 @@ for k = 1:length(all_outcome_patients)
         
         % add direction of distance between the resected and non-resected
         % means
-        direction(test_band,k) = (median(in_in_scores) - median(out_out_scores) > 0);
+        direction(test_band,k) = (median(in_in_scores) - median(out_out_scores)) > 0;
         
     end
     fprintf(repmat('\b',1,line_length))
@@ -706,7 +706,7 @@ xtickangle(90)
 hcb = colorbar;
 colormap(flip(parula(40)))
 title(hcb,'Two-tailed p-value')
-title(sprintf('Mann-Whitney U test p-values for each band of each patient'),'fontsize',12)
+title(sprintf('Mann-Whitney U test p-values for OUT-OUT and IN-IN connections'),'fontsize',12)
 
 pos_dist_sig_indices = find((patient_p_values < alpha) & direction);
 neg_dist_sig_indices = find((patient_p_values < alpha) & ~direction);
@@ -725,13 +725,15 @@ text(X(neg_dist_sig_indices),Y(neg_dist_sig_indices),char(42),'Color',[1 0 0],'H
 % add characters signifying outcome to each column
 text(find(strcmp({all_outcome_patients(:).outcome},'good')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'good'))),'G','Color','g','HorizontalAlignment','center','fontsize',10)
 text(find(strcmp({all_outcome_patients(:).outcome},'poor')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'poor'))),'P','Color','r','HorizontalAlignment','center','fontsize',10)
+text(find(strcmp({all_outcome_patients(:).implant},'ECoG')),7*ones(1,sum(strcmp({all_outcome_patients(:).implant},'ECoG'))),'E','Color','#eba338','HorizontalAlignment','center','fontsize',10)
+text(find(strcmp({all_outcome_patients(:).implant},'SEEG')),7*ones(1,sum(strcmp({all_outcome_patients(:).implant},'SEEG'))),'S','Color','#a038eb','HorizontalAlignment','center','fontsize',10)
 
 hold on
 
 h = zeros(2, 1);
 h(1) = plot(NaN,NaN,'.b');
 h(2) = plot(NaN,NaN,'.r');
-lg = legend(h,'resected median > non-resected median','resected median < non-resected median');
+lg = legend(h,'IN-IN median > OUT-OUT median','IN-IN median < OUT-OUT median');
 set(lg,'color','w')
 
 save_name = sprintf('output/supplemental_figures/patient_p_values.png');
@@ -758,19 +760,21 @@ colormap(flip(cool(40)))
 bound = max(abs(distance),[],'all');
 caxis([-3, 3]);
 
-title(hcb,'Resected mean - non-resected mean')
-title(sprintf('Difference between mean resected/non-resected z-score by patient'),'fontsize',12)
+title(hcb,'IN-IN median - OUT-OUT median')
+title(sprintf('Difference between median IN-IN/OUT-OUT score'),'fontsize',12)
 
 % add characters signifying outcome to each column
 text(find(strcmp({all_outcome_patients(:).outcome},'good')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'good'))),'G','Color','g','HorizontalAlignment','center','fontsize',10)
 text(find(strcmp({all_outcome_patients(:).outcome},'poor')),6*ones(1,sum(strcmp({all_outcome_patients(:).outcome},'poor'))),'P','Color','r','HorizontalAlignment','center','fontsize',10)
+text(find(strcmp({all_outcome_patients(:).implant},'ECoG')),7*ones(1,sum(strcmp({all_outcome_patients(:).implant},'ECoG'))),'E','Color','#eba338','HorizontalAlignment','center','fontsize',10)
+text(find(strcmp({all_outcome_patients(:).implant},'SEEG')),7*ones(1,sum(strcmp({all_outcome_patients(:).implant},'SEEG'))),'S','Color','#a038eb','HorizontalAlignment','center','fontsize',10)
 
 frmt = @(x) convertCharsToStrings(sprintf('%.1f',x));
 formatted_distance = arrayfun(frmt,distance);
 formatted_distance(strcmp(formatted_distance,'NaN')) = "";
 
 % add distance values to plot
-text(X(:),Y(:),formatted_distance(:),'HorizontalAlignment', 'center','VerticalAlignment', 'middle','fontsize',5,'Color',[0,0,0])
+text(X(:),Y(:),formatted_distance(:),'HorizontalAlignment','center','VerticalAlignment','middle','fontsize',5,'Color',[0,0,0])
 
 h=gca;
 h.YAxis.TickLength = [0 0];
