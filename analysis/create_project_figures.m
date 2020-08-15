@@ -45,21 +45,19 @@ validation_test_results = cell(5,9);
 abl_res_test_results = cell(12,9);
 implant_test_results = cell(12,9);
 
-% to hold logistic regression results
-mnr_results = cell(5,3);
-mdl_results = cell(5,1);
-
 set(0,'units','inches')
 screen_dims = get(0,'ScreenSize');
 figure_width = 12;
 
 for atlas_method = ["patient","edge"]
-    for test_band = 1:5
+    for test_band = 5
         % cross-validation of good-outcome patients
         for s = 1:length(good_patient_indices)
             test_patient = all_patients(good_patient_indices(s));
             cv_patients = all_patients(good_patient_indices);
             cv_patients(s) = [];
+            
+            patient_id = test_patient.patientID;
 
             line_length = fprintf('Testing %s...', test_patient.patientID);
 
@@ -67,7 +65,7 @@ for atlas_method = ["patient","edge"]
                 validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem",atlas_method);
 
             % get all good outcome patient zscores
-            all_patient_zscores(good_patient_indices(s)).freq(test_band).data = all_scores;
+            good_patient_zscores(test_band).freq{s} = all_scores;
             
             % place results into all_patients
             all_patients(good_patient_indices(s)).z_scores(test_band).data.out_out = out_out_scores;
@@ -82,6 +80,8 @@ for atlas_method = ["patient","edge"]
             fprintf(repmat('\b',1,line_length))
 
         end
+        
+        save(sprintf('data/%s/%s_all_scores_freq_%d.mat',patient_id,patient_id,test_band),'all_scores');
 
         % repeat cross-validation for poor outcome patients
 
@@ -98,8 +98,8 @@ for atlas_method = ["patient","edge"]
             [out_out_scores, in_in_scores, in_out_scores ,all_scores] = ...
                 validate_patient(test_patient,cv_patients,region_list,test_band,test_threshold,"sem",atlas_method);
 
-            % get all poor outcome patient zscores
-            all_patient_zscores(poor_patient_indices(s)).freq(test_band).data = all_scores;
+            % get all good outcome patient zscores
+            poor_patient_zscores(test_band).freq{s} = all_scores;
             
             % place results into all_patients
             all_patients(poor_patient_indices(s)).z_scores(test_band).data.out_out = out_out_scores;
@@ -127,6 +127,7 @@ for atlas_method = ["patient","edge"]
         titles = {{sprintf('Standardized scores of connectivity strengths\nin good outcome patients (%s)',band_names{test_band}),''}, ...
             {sprintf('Standardized scores of connectivity strengths\nin poor outcome patients (%s)',band_names{test_band}),''}};
 
+        figure(1);clf;
         for j = 1:length(sub_groups)
 
             subplot(1,2,j)
@@ -138,11 +139,11 @@ for atlas_method = ["patient","edge"]
                 plot_data = reshape(cell2mat(plot_data),[],1);
                 plot_data = plot_data(~isnan(plot_data) & ~isinf(plot_data));
 
-                histogram(rmoutliers(plot_data),'BinWidth',bin_width);
+                histogram(plot_data,'BinWidth',bin_width); % no rm_outliers
                 hold on
 
                 % plot median
-                xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
+                %xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
 
             end
 
@@ -215,6 +216,7 @@ for atlas_method = ["patient","edge"]
             {sprintf('Good outcome resection patients (%s)',band_names{test_band}),''}, ...
             {sprintf('Poor outcome resection patients (%s)',band_names{test_band}),''}};
 
+        figure(2);clf;
         for j = 1:length(sub_groups(:))
 
             subplot(2,2,j)
@@ -226,11 +228,11 @@ for atlas_method = ["patient","edge"]
                 plot_data = reshape(cell2mat(plot_data),[],1);
                 plot_data = plot_data(~isnan(plot_data) & ~isinf(plot_data));
 
-                histogram(rmoutliers(plot_data),'BinWidth',bin_width);
+                histogram(plot_data,'BinWidth',bin_width); % no rmoutliers
                 hold on
 
                 % plot mean
-                xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
+                %xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
 
             end
 
@@ -306,6 +308,7 @@ for atlas_method = ["patient","edge"]
             {sprintf('Good outcome SEEG patients (%s)',band_names{test_band}),''}, ...
             {sprintf('Poor outcome SEEG patients (%s)',band_names{test_band}),''}};
 
+        figure(3);clf;
         for j = 1:length(sub_groups(:))
 
             subplot(2,2,j)
@@ -317,11 +320,11 @@ for atlas_method = ["patient","edge"]
                 plot_data = reshape(cell2mat(plot_data),[],1);
                 plot_data = plot_data(~isnan(plot_data) & ~isinf(plot_data));
 
-                histogram(rmoutliers(plot_data),'BinWidth',bin_width);
+                histogram(plot_data,'BinWidth',bin_width); %no rmoutliers
                 hold on
 
                 % plot mean
-                xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
+                %xline(median(plot_data),'--','Color',colors{k},'LineWidth',1);
 
             end
 
@@ -376,84 +379,36 @@ for atlas_method = ["patient","edge"]
             end
         end
 
-        % TODO: logistic regression
-        % predictors: distance between mean resected and mean non-resected 
-        % z-scores, mean & variance of the distribution of all z scores together
-        % response: good or poor outcome
-
-    %     % helper function
-    %     get_average_data = @(x) nanmean(x(triu(true(size(x)))));
-    %     
-    %     % get distance values for good outcome patients
-    %     good_distances = cell2mat(cellfun(get_average_data,good_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,good_z_score_results,'UniformOutput',false));
-    %     
-    %     % get distance values for poor outcome patients and append them
-    %     poor_distances = cell2mat(cellfun(get_average_data,poor_resected_z_score_results,'UniformOutput',false)) - cell2mat(cellfun(get_average_data,poor_z_score_results,'UniformOutput',false));
-    %     
-    %     % combine two arrays
-    %     distances = [good_distances; poor_distances];
-    %     
-    %     % get mean z-scores
-    %     good_means = nanmean([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
-    %     
-    %     poor_means = nanmean([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
-    %     
-    %     z_score_means = [good_means, poor_means];
-    %     
-    %     % get variance of z-scores
-    %     good_variances = nanvar([cell2mat(cellfun(get_data,good_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,good_z_score_results,'UniformOutput',false).')]);
-    %     
-    %     poor_variances = nanvar([cell2mat(cellfun(get_data,poor_resected_z_score_results,'UniformOutput',false).'); cell2mat(cellfun(get_data,poor_z_score_results,'UniformOutput',false).')]);
-    %     
-    %     z_score_variances = [good_variances, poor_variances];
-    %     
-    %     % generate array of outcomes
-    %     outcomes = categorical([repmat(["good"],1,length(good_patient_indices)), repmat(["poor"],1,length(poor_patient_indices))]).';
-    % 
-    %     predictors = [distances,z_score_means.',z_score_variances.'];
-    %     
-    %     % remove any patients with NaN predictor values
-    %     good_rows = ~any(isnan(predictors),2);
-    %     predictors = predictors(good_rows,:);
-    %     outcomes = outcomes(good_rows,:);
-    %     
-    %     % perform logistic regression
-    %     [B,dev,stats] = mnrfit(predictors,outcomes.','Model','hierarchical');
-    %     mnr_results(test_band,:) = {B,dev,stats};
-    %     
-    %     mdl = fitglm(predictors,outcomes,'Distribution','binomial','Link','logit');
-    %     mdl_results(test_band) = {mdl};
-
-        close all
+        %close all
     end
 % get average threshold values for each band
 avg_thresholds = nanmean(threshold_results,1);
 
-validation_test_result_table = cell2table(validation_test_results, ...
-    'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
-    'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
-    'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
-    'IN-IN to IN-IN (between)'},'RowNames',band_names);
+% validation_test_result_table = cell2table(validation_test_results, ...
+%     'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
+%     'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
+%     'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
+%     'IN-IN to IN-IN (between)'},'RowNames',band_names);
+% 
+% add_char = @(x) [x,':'];
 
-add_char = @(x) [x,':'];
-
-abl_res_test_result_table = cell2table(abl_res_test_results, ...
-    'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
-    'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
-    'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
-    'IN-IN to IN-IN (between)'},'RowNames',[{'Ablation'}, band_names(:)', {'Resection'}, cellfun(add_char,band_names(:)','UniformOutput',false)]);
-
-implant_test_result_table = cell2table(implant_test_results, ...
-    'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
-    'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
-    'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
-    'IN-IN to IN-IN (between)'},'RowNames',[{'ECoG'}, band_names(:)', {'SEEG'}, cellfun(add_char,band_names(:)','UniformOutput',false)]);
-
-writetable(validation_test_result_table,sprintf('output/supplemental_figures/%s_method/by_outcome/validation_test_results.xlsx',atlas_method),'WriteRowNames',true)
-writetable(abl_res_test_result_table,sprintf('output/supplemental_figures/%s_method/by_therapy/abl_res_test_results.xlsx',atlas_method),'WriteRowNames',true)
-writetable(implant_test_result_table,sprintf('output/supplemental_figures/%s_method/by_implant/implant_test_results.xlsx',atlas_method),'WriteRowNames',true)
-
-fprintf('Statistical test results saved. (%s method)\n',atlas_method)
+% abl_res_test_result_table = cell2table(abl_res_test_results, ...
+%     'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
+%     'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
+%     'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
+%     'IN-IN to IN-IN (between)'},'RowNames',[{'Ablation'}, band_names(:)', {'Resection'}, cellfun(add_char,band_names(:)','UniformOutput',false)]);
+% 
+% implant_test_result_table = cell2table(implant_test_results, ...
+%     'VariableNames',{'OUT-OUT to IN-IN (good)', 'OUT-OUT to IN-OUT (good)', ...
+%     'IN-OUT to IN-IN (good)','OUT-OUT to IN-IN (poor)','OUT-OUT to IN-OUT (poor)', ...
+%     'IN-OUT to IN-IN (poor)', 'OUT-OUT to OUT-OUT (between)', 'IN-OUT to IN-OUT (between)', ...
+%     'IN-IN to IN-IN (between)'},'RowNames',[{'ECoG'}, band_names(:)', {'SEEG'}, cellfun(add_char,band_names(:)','UniformOutput',false)]);
+% 
+% writetable(validation_test_result_table,sprintf('output/supplemental_figures/%s_method/by_outcome/validation_test_results.xlsx',atlas_method),'WriteRowNames',true)
+% writetable(abl_res_test_result_table,sprintf('output/supplemental_figures/%s_method/by_therapy/abl_res_test_results.xlsx',atlas_method),'WriteRowNames',true)
+% writetable(implant_test_result_table,sprintf('output/supplemental_figures/%s_method/by_implant/implant_test_results.xlsx',atlas_method),'WriteRowNames',true)
+% 
+% fprintf('Statistical test results saved. (%s method)\n',atlas_method)
 
 end
 
@@ -734,130 +689,6 @@ end
 sgtitle({sprintf('Difference in mean z-scores (resected - non-resected) by band and outcome'),''},'FontSize',14)
 saveas(gcf,sprintf('output/supplemental_figures/distance_and_outcome_comparison.png')) % save plot to output folder
 
-%% plot logistic regression results
-
-bound = 30;
-interval = 5;
-jitter = 1;
-marker_size = 80;
-
-fig = figure;
-fig.WindowState = 'maximized';
-hold on
-
-% plot 3d volume
-for test_band = 1:5
-    coeffs = mnr_results{test_band,1};
-    f = @(x,y,z) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y)+(coeffs(4)*z))));
-    [x,y,z] = ndgrid(-bound/2:interval:bound/2,-bound/2:interval:bound/2,interval:bound);
-    x = x + jitter*(rand(size(x))-0.5);
-    y = y + jitter*(rand(size(y))-0.5);
-    z = z + jitter*(rand(size(z))-0.5);
-    v = f(x,y,z);
-
-%     p1 = patch(isosurface(x,y,z,v,0.25));
-%     hold on
-%     p2 = patch(isosurface(x,y,z,v,0.5));
-%     p3 = patch(isosurface(x,y,z,v,0.75));
-%     isonormals(x,y,z,v,p1);
-%     isonormals(x,y,z,v,p2);
-%     isonormals(x,y,z,v,p3);
-%     p1.FaceColor = 'red';
-%     p2.FaceColor = 'yellow';
-%     p3.FaceColor = 'green';
-%     p1.EdgeColor = 'none';
-%     p2.EdgeColor = 'none';
-%     p3.EdgeColor = 'green';
-%     daspect([1,1,1])
-%     view(3)
-    
-    x = reshape(x,[],1); 
-    y = reshape(y,[],1);
-    z = reshape(z,[],1);
-    v = reshape(v,[],1);
-    
-    subplot(2,3,test_band)
-    set(gca, 'LooseInset', get(gca,'TightInset'))
-    scatter3(x,y,z,marker_size,v,'filled','o');
-    alpha(2*interval/bound);
-    view(3)
-    axis tight
-    
-    cb = colorbar;
-    cb.Label.String = 'Probability of good surgical outcome';
-    
-    colormap('parula')
-    
-    xlabel('Distance')
-    ylabel('Mean z-score')
-    zlabel('Variance of z-scores')
-    
-    title({sprintf('Logistic regression for patient outcome on band %d',test_band),''});
-end
-
-saveas(gcf,'output/3d_logistic_regression_results.png') % save plot to output folder
-
-hold off
-
-fig = figure;
-fig.WindowState = 'maximized';
-hold on
-
-% plot 3d surface
-for test_band = 1:5
-    coeffs = mnr_results{test_band,1};
-    f = @(x,y) 1./(1+exp(-(coeffs(1)+(coeffs(2)*x)+(coeffs(3)*y))));
-    [x,y] = ndgrid(-bound/2:interval/2:bound/2);
-    v = f(x,y);
-    
-    subplot(2,3,test_band)
-    set(gca, 'LooseInset', get(gca,'TightInset'))
-    surf(x,y,v);
-    view(3)
-    axis tight
-    
-    colormap('parula')
-    
-    xlabel('Distance')
-    ylabel('Mean z-score')
-    zlabel('Probability of good outcome')
-    
-    title({sprintf('Logistic regression for patient outcome on band %d',test_band),''});
-end
-
-saveas(gcf,'output/2d_logistic_regression_results.png') % save plot to output folder
-
-hold off
-
-fig = figure;
-fig.WindowState = 'maximized';
-
-format long
-
-% plot ROC curves
-for test_band = 1:5
-    subplot(2,3,test_band)
-    results = mdl_results{test_band};
-    scores = results.Fitted.Probability;
-    [X,Y,T,AUC] = perfcurve(outcomes,scores,'good');
-    %fprintf('Band %d:\nArea under curve = %16.f\n',test_band,AUC);
-    
-    subplot(2,3,test_band)
-    plot(X,Y)
-    x = 0:0.1:1;
-    y = x;
-    hold on
-    plot(x,y)
-    xlabel('False positive rate') 
-    ylabel('True positive rate')
-    text(0.4,0.1,sprintf('Area under curve = %.5f',AUC));
-    title({sprintf('ROC for Classification by Logistic Regression (band %d)',test_band),''})
-end
-
-saveas(gcf,'output/roc_results.png') % save plot to output folder
-
-hold off
-
 %% Clinical hypothesis testing
 % here we will simulate how the atlas could be used in a prospective manner
 
@@ -982,52 +813,3 @@ poor_outcome_patients = all_patients(poor_cond);
 %% Spatial extent of atlas -> correlation to outcome
 % use modularity to quantify communities of 'abnormal' connectivity and
 % find the spatial extent (mean interregional distance)
-
-%% testing create_atlas_by_edge
-test_band = 1;
-test_threshold = 3;
-[mean_conn, std_conn, num_conn] = create_atlas_by_edge({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
-
-figure;
-fig = gcf;
-set(fig,'defaultAxesTickLabelInterpreter','none'); 
-%set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
-imagesc(num_conn,'AlphaData',~(num_conn==0))
-axis(gca,'equal');
-set(gca,'color',0*[1 1 1]);
-set(gca,'xtick',(1:90),'xticklabel',all_locs)
-xtickangle(45)
-set(gca,'ytick',(1:90),'yticklabel',all_locs)
-set(gca,'fontsize', 4)
-cb = colorbar;
-cb.FontSize = 8;
-title(sprintf('Electrode-level sample sizes for each edge in non-resected regions of good outcome patients'),'fontsize',12)
-save_name = sprintf('output/supplemental_figures/non_resected_good_outcome_electrode_level_sample_sizes.png');
-fig.InvertHardcopy = 'off';
-saveas(fig,save_name) % save plot to output folder
-
-for f = 1:5
-    test_band = f;
-
-    % run all good outcome patients in atlas
-    [mean_conn, std_conn, num_conn] = create_atlas_by_edge({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
-
-    % visualize adjacency matrices with labels added
-    figure;
-    fig = gcf;
-    set(fig,'defaultAxesTickLabelInterpreter','none'); 
-    %set(gcf,'Units','inches','Position',[(screen_dims(3)-figure_width)/2, (screen_dims(4)-figure_width)/2, figure_width, figure_width-1])
-    imagesc(mean_conn,'AlphaData',~isnan(mean_conn))
-    axis(gca,'equal');
-    set(gca,'color',0*[1 1 1]);
-    set(gca,'xtick',(1:90),'xticklabel',all_locs)
-    xtickangle(45)
-    set(gca,'ytick',(1:90),'yticklabel',all_locs)
-    set(gca,'fontsize', 4)
-    cb = colorbar;
-    cb.FontSize = 8;
-    title(sprintf('Electrode-level connectivity atlas of non-resected regions in good outcome patients (band %d)',test_band),'fontsize',12)
-    save_name = sprintf('output/supplemental_figures/electrode_level_non_resected_good_outcome_atlas_band_%d.png',test_band);
-    fig.InvertHardcopy = 'off';
-    saveas(fig,save_name) % save plot to output folder
-end

@@ -103,7 +103,11 @@ for i = 1:num_regions % first region
             
             if i == j % loop case
                 % get only the upper triangular data since it's symmetric
-                patient_strengths = get_data(patient_strengths);
+                
+                % I edited this to quantify self connections (within ROI) - John
+                same_roi_data = current_matrix(first_reg_elec, second_reg_elec);
+                patient_strengths = same_roi_data(:); %get_data(patient_strengths);
+                
             else % assuming regions are spatially disjoint
                 patient_strengths = patient_strengths(:);
             end

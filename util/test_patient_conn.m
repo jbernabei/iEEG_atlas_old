@@ -18,7 +18,7 @@ patient_NaN = find(isnan(patient_edges));
 atlas_NaN = find(isnan(atlas_edges));
 
 % get rid of NaNs
-all_NaN = unique([patient_NaN;atlas_NaN]);
+all_NaN = unique([patient_NaN]); % previously unique([patient_NaN;atlas_NaN]);
 patient_edges(all_NaN) = [];
 atlas_edges(all_NaN) = [];
 

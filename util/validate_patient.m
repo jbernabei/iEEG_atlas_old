@@ -20,9 +20,9 @@ end
     
 % test patient
 if score_denominator == "sem"
-    score_matrix = test_patient_conn(mean_conn, sem_conn, region_list, patient_conn);
+    [score_matrix, corr_val, residuals] = test_patient_conn(mean_conn, sem_conn, region_list, patient_conn);
 else
-    score_matrix = test_patient_conn(mean_conn, std_conn, region_list, patient_conn);
+    [score_matrix, corr_val, residuals] = test_patient_conn(mean_conn, std_conn, region_list, patient_conn);
 end
 
 % get labels of regions which contain non-resected electrodes
@@ -39,7 +39,7 @@ res_regions = setdiff(regions_with_res_elec,regions_with_non_res_elec);
 
 % convert region labels to indices on score_matrix
 [~,non_res_indices] = ismember(non_res_regions,region_list);
-[~,res_indices] = ismember(res_regions,region_list);
+[~,res_indices] = ismember(regions_with_res_elec,region_list);
 non_res_indices(non_res_indices == 0) = [];
 res_indices(res_indices == 0) = [];
 

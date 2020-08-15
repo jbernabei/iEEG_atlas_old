@@ -1,9 +1,15 @@
-function [spatial_extent] = calculate_spatial_extent(z_score_matrices, atlas_distance)
+function [spatial_extent] = calculate_spatial_extent(z_score_matrices, all_dists)
     
     % get number of patients
     num_patients = length(z_score_matrices)
     
     for pt = 1:num_patients
+        
+        clear mean_in_in_abnormality
+        clear mean_distance
+        
+        %[~, atlas_distance] = create_distance_matrix(mni_coords{pt}, atlas_inds);
+        atlas_distance = all_dists{pt};
         
         % extract patients z score matrices
         pt_zscores = z_score_matrices{pt};
@@ -30,9 +36,9 @@ function [spatial_extent] = calculate_spatial_extent(z_score_matrices, atlas_dis
            % find this modules nodes
            module_nodes = find(modules==m);
            
-           mean_in_in_abnormality = nanmean(nanmean(reduced_pt_zscores(module_nodes,module_nodes)));
+           mean_in_in_abnormality(m) = nanmean(nanmean(reduced_pt_zscores(module_nodes,module_nodes)));
            
-           mean_distance(m) = mean(mean(atlas_distance(module_nodes,module_nodes)));
+           mean_distance(m) = nanmean(nanmean(atlas_distance(module_nodes,module_nodes)));
            
            
         end

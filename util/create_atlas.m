@@ -87,7 +87,7 @@ for p = 1:num_patients
         
         % calculate connections within the region
         patient_strengths = first_reg_strengths(:,first_reg_elec);
-        patient_strength = mean(patient_strengths(triu(true(size(patient_strengths)),1)));
+        patient_strength = nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
         
         % add to output array if the region contains any electrodes
         if ~isnan(patient_strength)
@@ -98,7 +98,7 @@ for p = 1:num_patients
             continue
         end
 
-        for j = (i+1):90 % second region
+        for j = 1:90 % second region (used to be (i+1):90)
             
             % get electrodes contained within second region
             second_reg_elec = (patient_electrode_regions == region_list(j) & ~resect_boolean);
@@ -135,11 +135,11 @@ std_conn(num_samples < threshold) = NaN;
 sem_conn(num_samples < threshold) = NaN;
 
 % symmetrize all output matrices
-symmetrize = @(x) triu(x) + tril(x.',-1);
-mean_conn = symmetrize(mean_conn);
-std_conn = symmetrize(std_conn);
-sem_conn = symmetrize(sem_conn);
-num_samples = symmetrize(num_samples);
+% symmetrize = @(x) triu(x) + tril(x.',-1);
+% mean_conn = symmetrize(mean_conn);
+% std_conn = symmetrize(std_conn);
+% sem_conn = symmetrize(sem_conn);
+% num_samples = symmetrize(num_samples);
 
 if ~silence_output, fprintf("\b\b... successfully generated atlas for band %d, threshold = %d.\n",band,threshold); end
 

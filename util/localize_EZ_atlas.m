@@ -1,4 +1,4 @@
-function [all_pt_dice] = localize_EZ_atlas(z_score_mat, pt_roi, resected_elecs, mni_coordinates)
+function [all_pt_dice] = localize_EZ_atlas(z_score_mat, resected_elecs, mni_coordinates)
 % [mean_conn, std_conn, num_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -35,6 +35,7 @@ for pt = 1:num_patients
     clear metric_resect
     clear reduced_adj
     clear node_group
+    clear resect_val
     
     % extract z score matrix for that patient
     this_patient_mat = z_score_mat{pt};
@@ -46,58 +47,13 @@ for pt = 1:num_patients
     % threshold
     %EZ_roi = find(frac_abnl_edge>node_thresh);
     
-    % get num_roi
-    patient_roi = pt_roi{pt};
     
-    mni_coords = mni_coordinates{pt};
-    
-    % need to get centroids of each ROI
-     % find unique brain regions
-    unique_roi = unique(patient_roi{pt});
-
-    a = 0;
-
-    % loop through unique brain regions
-    for i = 1:length(unique_roi)
-
-        % find which nodes are in these
-        nodes_1 = find(patient_roi{pt}==unique_roi(i));
-
-        if size(resected_elecs{pt},2)==1
-            resected_elecs{pt} = resected_elecs{pt}';
-        end
-
-        % find centroid of these regions
-        centroid_1 = mean(mni_coords{pt}(nodes_1,:),1);
-        pt_centroid{pt}.data(i,:) = centroid_1;
-
-        % old code
-         % check if its a resected region
-        if sum(sum(nodes_1'==resected_elecs{pt}))>0
-            a = a+1;
-            resect_region(pt).data(a) = i;
-        end
-
-        % loop through regions again
-        for j = 1:length(unique_roi)
-
-            % find second set of nodes
-            nodes_2 = find(patient_roi{pt}==unique_roi(j));
-
-            % find second set of centroidss
-            centroid_2 = mean(mni_coords{pt}(nodes_2,:),1);
-            if i==j
-            else
-
-            end
-        end
-
-    end
+    mni_coords = mni_coordinates{pt}; 
     
     % once we have centroids of ROI loop through all in iterative algorithm
     
     % get number of regions to use in iterative algorithm
-    for r = 1:length(unique_roi)
+    for r = 1:size(mni_coords,1)
         % get number of regions to use
         
         
@@ -106,14 +62,14 @@ for pt = 1:num_patients
         % point probably
         
         % loop through nodes
-        for i = 1:length(unique_roi)
+        for i = 1:size(mni_coords,1)
 
             % get coords from centroid
-            this_roi_coords = pt_centroid{pt}.data(i,:);
+            this_node_coords = mni_coords(i,:);
 
             % find all dists
-            for j = 1:num_nodes
-                dist(pt).data(j)= sqrt(sum((this_node_coords-pt_centroid{pt}.data(j,:)).^2));
+            for j = 1:size(mni_coords,1)
+                dist(pt).data(j)= sqrt(sum((this_node_coords-mni_coords(j,:)).^2));
             end
 
             % sort by distance
@@ -126,21 +82,37 @@ for pt = 1:num_patients
             node_group(i).data = I(1:(num_targets));
 
             % get the metric required
-            metric_resect(i) = nanmean(nanmean(z_score_mat{pt}(node_group(i).data,node_group(i).data)));
+            metric_resect(i) = nanmean(nanmean(this_patient_mat(node_group(i).data,node_group(i).data)));
 
         end
         
      % find resection w/ greatest total node strength resected
     [y, which_resection] = max(metric_resect);
+    
+    resect_val(r) = y;
 
     targets_1 = node_group(which_resection).data;
             
     %targets_1
     %resected_elecs{pt}
     % compute dice
-    dice_scores(r) = dice(targets_1,resect_region(pt).data);
+    
+    pt_true_res = resected_elecs{pt};
+    dice_scores(r) = dice_coef(targets_1(:)',pt_true_res(:)');
             
     end
+    
+    figure(pt);clf;
+    subplot(1,2,1)
+    hold on
+    plot(resect_val)
+    plot([length(pt_true_res),length(pt_true_res)],[0,max(resect_val)],'r-.')
+    hold off
+    subplot(1,2,2)
+    hold on
+    plot(dice_scores)
+    plot([length(pt_true_res),length(pt_true_res)],[0,max(dice_scores)],'r-.')
+    hold off
     
     all_pt_dice(pt).data = dice_scores;
    
