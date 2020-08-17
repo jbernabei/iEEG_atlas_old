@@ -1,6 +1,7 @@
 function [all_patients, all_inds, all_locs, conn_field, coords_field, ...
     hasData_field, id_field, implant_field, outcome_field, resect_field, ...
-    roi_field, target_field, therapy_field, region_list, region_names] = set_up_workspace(iEEG_atlas_path)
+    roi_field, target_field, therapy_field, region_list, region_names, ...
+    lesion_field, sz_field] = set_up_workspace(iEEG_atlas_path)
 
 addpath(genpath(iEEG_atlas_path))
 
@@ -30,6 +31,7 @@ all_patients = struct('patientID',metadata.Patient, ...
 'target',metadata.Target,'laterality',metadata.Laterality,...
 'lesion_status',metadata.Lesion_status,'age_onset',metadata.Age_onset,...
 'age_surgery',metadata.Age_surgery,'gender',metadata.Gender,...
+'generalized_sz',metadata.Generalized_sz,...
 'hypothesis_1',metadata.Hypothesis_1,'hypothesis_2',metadata.Hypothesis_2, ...
 'z_scores',repmat({repmat(struct('data',struct('out_out',[],'in_in',[],'in_out',[])),1,5)},length(metadata.Patient),1));
 
@@ -50,6 +52,8 @@ hasData_field = {all_patients.hasData};
 therapy_field = {all_patients.therapy};
 implant_field = {all_patients.implant};
 target_field = {all_patients.target};
+lesion_field = {all_patients.lesion_status};
+sz_field = {all_patients.generalized_sz};
 
 % if true, the script will automatically move problematic data to another
 % directory
@@ -100,6 +104,7 @@ end
 [all_patients.roi] = roi_field{:};
 [all_patients.resect] = resect_field{:};
 [all_patients.hasData] = hasData_field{:};
+[all_patients.lesion_status] = lesion_field{:};
 
 fprintf('\nAll patient data loaded.')
 

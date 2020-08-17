@@ -87,7 +87,7 @@ for p = 1:num_patients
         
         % calculate connections within the region
         patient_strengths = first_reg_strengths(:,first_reg_elec);
-        patient_strength = nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
+        patient_strength = nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));%nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
         
         % add to output array if the region contains any electrodes
         if ~isnan(patient_strength)

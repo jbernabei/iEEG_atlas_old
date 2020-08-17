@@ -1,4 +1,4 @@
-function [all_pt_dice] = localize_EZ_atlas(z_score_mat, resected_elecs, mni_coordinates)
+function [pt_dice, all_pt_dice] = localize_EZ_atlas(z_score_mat, resected_elecs, mni_coordinates)
 % [mean_conn, std_conn, num_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -30,6 +30,7 @@ num_patients = length(z_score_mat);
 
 % loop through number of patients 
 for pt = 1:num_patients
+    pt
     
     clear dice_scores
     clear metric_resect
@@ -38,7 +39,7 @@ for pt = 1:num_patients
     clear resect_val
     
     % extract z score matrix for that patient
-    this_patient_mat = z_score_mat{pt};
+    this_patient_mat = z_score_mat{pt}(1).data.all;
     
     % find fraction of abnormal edges connected to each node
     %frac_abnl_edge = nanmean(this_patient_mat>edge_thresh);
@@ -55,7 +56,7 @@ for pt = 1:num_patients
     % get number of regions to use in iterative algorithm
     for r = 1:size(mni_coords,1)
         % get number of regions to use
-        
+       
         
         % now we want to find spatially constrained number of regions with
         % best dice -> assess by intra-ROI connectivity -> find inflection
@@ -102,19 +103,20 @@ for pt = 1:num_patients
             
     end
     
-    figure(pt);clf;
-    subplot(1,2,1)
-    hold on
-    plot(resect_val)
-    plot([length(pt_true_res),length(pt_true_res)],[0,max(resect_val)],'r-.')
-    hold off
-    subplot(1,2,2)
-    hold on
-    plot(dice_scores)
-    plot([length(pt_true_res),length(pt_true_res)],[0,max(dice_scores)],'r-.')
-    hold off
+%     figure(pt);clf;
+%     subplot(1,2,1)
+%     hold on
+%     plot(resect_val)
+%     plot([length(pt_true_res),length(pt_true_res)],[0,max(resect_val)],'r-.')
+%     hold off
+%     subplot(1,2,2)
+%     hold on
+%     plot(dice_scores)
+%     plot([length(pt_true_res),length(pt_true_res)],[0,max(dice_scores)],'r-.')
+%     hold off
     
-    all_pt_dice(pt).data = dice_scores;
+    pt_dice(pt).data = dice_scores;
+    all_pt_dice(pt) = dice_scores(length(pt_true_res));
    
 
 end
