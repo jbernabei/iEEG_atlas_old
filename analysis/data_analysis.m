@@ -127,6 +127,9 @@ end
 
 %% plot z score results
 
+color1 = [0, 0.4470, 0.7410];
+color2 = [0.6350, 0.0780, 0.1840];
+
 for f = 1
    figure(f);clf;
    
