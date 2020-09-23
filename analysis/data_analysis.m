@@ -15,6 +15,8 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
     sz_field] = set_up_workspace(iEEG_atlas_path);
 
 %% get basic atlas info
+test_band = 1;
+
 test_threshold = 3;
 good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
 cv_patients = all_patients(good_patient_indices);
@@ -133,9 +135,9 @@ color2 = [0.6350, 0.0780, 0.1840];
 for f = 1
    figure(f);clf;
    
-   plot_data = [[good_outcome_in_in(:,f),[poor_outcome_in_in(:,f);NaN*ones(10,1)]],...
-       [good_outcome_in_out(:,f),[poor_outcome_in_out(:,f);NaN*ones(10,1)]],...
-       [good_outcome_out_out(:,f),[poor_outcome_out_out(:,f);NaN*ones(10,1)]]]
+   plot_data = [[good_outcome_in_in(:,f),[poor_outcome_in_in(:,f);NaN*ones(14,1)]],...
+       [good_outcome_in_out(:,f),[poor_outcome_in_out(:,f);NaN*ones(14,1)]],...
+       [good_outcome_out_out(:,f),[poor_outcome_out_out(:,f);NaN*ones(14,1)]]]
    
 %    subplot(1,3,1)
 %    boxplot([good_outcome_in_in(:,f),[poor_outcome_in_in(:,f);NaN*ones(10,1)]])
@@ -229,7 +231,7 @@ node_threshold = 0.1;
 [poor_spared_abn, poor_spared_frac_abn] = compute_node_abnormality(poor_patient_spared_zscores(test_band).freq, edge_threshold, node_threshold);
 
 figure(1);clf;
-boxplot([good_frac_abn', [poor_frac_abn';NaN*ones(10,1)], good_spared_frac_abn', [poor_spared_frac_abn';NaN*ones(10,1)]])
+boxplot([good_frac_abn', [poor_frac_abn';NaN*ones(14,1)], good_spared_frac_abn', [poor_spared_frac_abn';NaN*ones(14,1)]])
 ylim([-0.1 1])
 ylabel('Fraction of abnormal nodes')
 h = findobj(gca,'Tag','Box');
