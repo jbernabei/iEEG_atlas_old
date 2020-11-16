@@ -813,3 +813,28 @@ poor_outcome_patients = all_patients(poor_cond);
 %% Spatial extent of atlas -> correlation to outcome
 % use modularity to quantify communities of 'abnormal' connectivity and
 % find the spatial extent (mean interregional distance)
+
+blue = [0, 0.4470, 0.7410];
+beige = [254, 249, 213]./255;
+red = [0.6350, 0.0780, 0.1840];
+
+color_bar1 = [linspace(blue(1),beige(1),50)', linspace(blue(2),beige(2),50)', linspace(blue(3),beige(3),50)'];
+color_bar2 = [linspace(beige(1),red(1),50)', linspace(beige(2),red(2),50)', linspace(beige(3),red(3),50)'];
+
+color_bar = [color_bar1;color_bar2];
+
+%save('color_bar.mat','color_bar')
+
+color3 = [78 172 91]/255;
+color4 = [103 55 155]/255;
+beige = [254, 249, 213]./255;
+
+color_bar3 = [linspace(color3(1),beige(1),50)', linspace(color3(2),beige(2),50)', linspace(color3(3),beige(3),50)'];
+color_bar4 = [linspace(beige(1),color4(1),50)', linspace(beige(2),color4(2),50)', linspace(beige(3),color4(3),50)'];
+
+color_bar_alt = [color_bar3;color_bar4];
+
+figure(1);clf
+imagesc(all_patients(51).z_scores(1).data.all,'AlphaData',~isnan(all_patients(51).z_scores(1).data.all))
+colormap(color_bar)
+colorbar

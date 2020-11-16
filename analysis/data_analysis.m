@@ -14,6 +14,8 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
     therapy_field, region_list, region_name, lesion_field,...
     sz_field] = set_up_workspace(iEEG_atlas_path);
 
+load color_bar
+load color_bar_alt
 %% get basic atlas info
 test_band = 1;
 
@@ -22,21 +24,26 @@ good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcom
 cv_patients = all_patients(good_patient_indices);
 [mean_conn, std_conn, num_samples, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
 
-%nan_inds = find(num_samples==0);
-
 num_samples(num_samples==0) = NaN;
 median_connectivity(num_samples==0) = NaN;
+
+% find which roi belong to which lobes 
+lobe_table = readtable('lobes_aal.xlsx')
 
 figure(1);clf;
 subplot(1,2,2)
 imagesc(mean_conn)
 title('median connectivity')
+colormap(color_bar)
+colorbar
 subplot(1,2,1)
 imagesc(num_samples)
 title('number of samples')
+colorbar
+
 %% find z scores
 
-test_threshold = 7;
+test_threshold = 7; % main results for = 7
 
 good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
 poor_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor'));
@@ -68,9 +75,15 @@ for atlas_method = ["patient","not edge"]
             good_patient_zscores(test_band).freq{s} = abs(all_scores);
             good_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
             
-            good_outcome_out_out(s,test_band) = nanmedian(nanmedian(abs(out_out_scores)));
-            good_outcome_in_out(s,test_band) = nanmedian(nanmedian(abs(in_out_scores)));
-            good_outcome_in_in(s,test_band) = nanmedian(nanmedian(abs(in_in_scores)));
+            good_outcome_out_out(s,test_band) = nanmedian(nanmedian((out_out_scores)));
+            good_outcome_in_out(s,test_band) = nanmedian(nanmedian((in_out_scores)));
+            good_outcome_in_in(s,test_band) = nanmedian(nanmedian((in_in_scores)));
+            
+            good_outcome_out_out_2(s,test_band) = nanvar(out_out_scores(:));
+            good_outcome_in_out_2(s,test_band) = nanvar(in_out_scores(:));
+            good_outcome_in_in_2(s,test_band) = nanvar(in_in_scores(:));
+            
+            good_outcome_all_var(s,test_band) = nanvar(all_scores(:));
             
             % place results into all_patients
             all_patients(good_patient_indices(s)).z_scores(test_band).data.all = all_scores;
@@ -110,9 +123,15 @@ for atlas_method = ["patient","not edge"]
             poor_patient_zscores(test_band).freq{s} = abs(all_scores);
             poor_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
             
-            poor_outcome_out_out(s,test_band) = nanmedian(nanmedian(abs(out_out_scores)));
-            poor_outcome_in_out(s,test_band) = nanmedian(nanmedian(abs(in_out_scores)));
-            poor_outcome_in_in(s,test_band) = nanmedian(nanmedian(abs(in_in_scores)));
+            poor_outcome_out_out(s,test_band) = nanmedian(nanmedian((out_out_scores)));
+            poor_outcome_in_out(s,test_band) = nanmedian(nanmedian((in_out_scores)));
+            poor_outcome_in_in(s,test_band) = nanmedian(nanmedian((in_in_scores)));
+            
+            poor_outcome_out_out_2(s,test_band) = nanvar(out_out_scores(:));
+            poor_outcome_in_out_2(s,test_band) = nanvar(in_out_scores(:));
+            poor_outcome_in_in_2(s,test_band) = nanvar(in_in_scores(:));
+            
+            poor_outcome_all_var(s,test_band) = nanvar(all_scores(:));
             
             % place results into all_patients
             all_patients(poor_patient_indices(s)).z_scores(test_band).data.all = all_scores;
@@ -127,33 +146,43 @@ for atlas_method = ["patient","not edge"]
     end
 end
 
-%% plot z score results
+%% set up indices
+%ablation / resection
+g_abl_placehold_inds = find([all_patients.hasData] & strcmp({all_patients.outcome},'good') & strcmp({all_patients.therapy},'Ablation'));
+gpai = ismember(good_patient_indices,g_abl_placehold_inds);
+
+g_res_placehold_inds = find([all_patients.hasData] & strcmp({all_patients.outcome},'good') & strcmp({all_patients.therapy},'Resection'));
+gpri = ismember(good_patient_indices,g_res_placehold_inds);
+
+p_abl_placehold_inds = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor') & strcmp({all_patients.therapy},'Ablation'));
+ppai= ismember(poor_patient_indices,p_abl_placehold_inds);
+
+p_res_placehold_inds = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor') & strcmp({all_patients.therapy},'Resection'));
+ppri = ismember(poor_patient_indices,p_res_placehold_inds);
+
+%% plot z score results all
 
 color1 = [0, 0.4470, 0.7410];
+colormid = [254, 249, 213]./255;
 color2 = [0.6350, 0.0780, 0.1840];
+
+abs_good_outcome_in_in = abs(good_outcome_in_in);
+abs_good_outcome_in_out = abs(good_outcome_in_out);
+abs_good_outcome_out_out = abs(good_outcome_out_out);
+abs_poor_outcome_in_in = abs(poor_outcome_in_in);
+abs_poor_outcome_in_out = abs(poor_outcome_in_out);
+abs_poor_outcome_out_out = abs(poor_outcome_out_out);
 
 for f = 1
    figure(f);clf;
    
-   plot_data = [[good_outcome_in_in(:,f),[poor_outcome_in_in(:,f);NaN*ones(14,1)]],...
-       [good_outcome_in_out(:,f),[poor_outcome_in_out(:,f);NaN*ones(14,1)]],...
-       [good_outcome_out_out(:,f),[poor_outcome_out_out(:,f);NaN*ones(14,1)]]]
-   
-%    subplot(1,3,1)
-%    boxplot([good_outcome_in_in(:,f),[poor_outcome_in_in(:,f);NaN*ones(10,1)]])
-%    title('IN-IN connectivity')
-%    ylim([0 8])
-%    subplot(1,3,2)
-%    boxplot([good_outcome_in_out(:,f),[poor_outcome_in_out(:,f);NaN*ones(10,1)]])
-%    title('IN-OUT connectivity')
-%    ylim([0 8])
-%    subplot(1,3,3)
-%    boxplot([good_outcome_out_out(:,f),[poor_outcome_out_out(:,f);NaN*ones(10,1)]])
-%    title('OUT-OUT connectivity')
-%    ylim([0 8])
+   subplot(1,2,1)
+   plot_data = abs([[good_outcome_in_in(:,f),[poor_outcome_in_in(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]],...
+       [good_outcome_in_out(:,f),[poor_outcome_in_out(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]],...
+       [good_outcome_out_out(:,f),[poor_outcome_out_out(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]]])
+
 
    boxplot(plot_data)
-   ylim([0 10])
    
    h = findobj(gca,'Tag','Box');
    colors = [color2; color1; color2; color1; color2; color1];
@@ -162,21 +191,39 @@ for f = 1
     end
     
     legend('Poor outcome','Good outcome')
+    
+    subplot(1,2,2)
+   plot_data = [[good_outcome_all_var(:,f),[poor_outcome_all_var(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]]]
+
+    boxplot(plot_data)
+    
+    h = findobj(gca,'Tag','Box');
+   colors = [color2; color1; color2; color1; color2; color1];
+    for j=1:length(h)
+        patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+    end
    
-   in_in_p_vals(f) = ranksum(good_outcome_in_in(:,f),poor_outcome_in_in(:,f));
-   in_out_p_vals(f) = ranksum(good_outcome_in_out(:,f),poor_outcome_in_out(:,f));
-   out_out_p_vals(f) = ranksum(good_outcome_out_out(:,f),poor_outcome_out_out(:,f));
+   in_in_p_vals(f) = ranksum(abs_good_outcome_in_in(:,f),abs_poor_outcome_in_in(:,f));
+   in_out_p_vals(f) = ranksum(abs_good_outcome_in_out(:,f),abs_poor_outcome_in_out(:,f));
+   out_out_p_vals(f) = ranksum(abs_good_outcome_out_out(:,f),abs_poor_outcome_out_out(:,f));
    
-   in_in_vs_in_out_good(f) = signrank(good_outcome_in_in(:,f),good_outcome_in_out(:,f));
-   in_in_vs_in_out_poor(f) = signrank(poor_outcome_in_in(:,f),poor_outcome_in_out(:,f));
+   in_in_vs_in_out_good(f) = signrank(abs_good_outcome_in_in(:,f),abs_good_outcome_in_out(:,f));
+   in_in_vs_in_out_poor(f) = signrank(abs_poor_outcome_in_in(:,f),abs_poor_outcome_in_out(:,f));
    
-   in_in_vs_out_out_good(f) = signrank(good_outcome_in_in(:,f),good_outcome_out_out(:,f));
-   in_in_vs_out_out_poor(f) = signrank(poor_outcome_in_in(:,f),poor_outcome_out_out(:,f));
+   in_in_vs_out_out_good(f) = signrank(abs_good_outcome_in_in(:,f),abs_good_outcome_out_out(:,f));
+   in_in_vs_out_out_poor(f) = signrank(abs_poor_outcome_in_in(:,f),abs_poor_outcome_out_out(:,f));
    
-   in_out_vs_out_out_good(f) = signrank(good_outcome_in_out(:,f),good_outcome_out_out(:,f));
-   in_out_vs_out_out_poor(f) = signrank(poor_outcome_in_out(:,f),poor_outcome_out_out(:,f));
+   in_out_vs_out_out_good(f) = signrank(abs_good_outcome_in_out(:,f),abs_good_outcome_out_out(:,f));
+   in_out_vs_out_out_poor(f) = signrank(abs_poor_outcome_in_out(:,f),abs_poor_outcome_out_out(:,f));
+   
+    pvals_2(f) = ranksum(good_outcome_all_var(:,f),poor_outcome_all_var(:,f));
    
 end
+
+% want to also split up ECoG vs SEEG for this analysis, and resection vs
+% ablation
+
+
 %% extract p values for basic z score results
 
 in_in_p_vals
@@ -191,6 +238,60 @@ in_in_vs_out_out_poor
 
 in_out_vs_out_out_good
 in_out_vs_out_out_poor
+
+pvals_2
+
+
+%% logistic regression predict outcome based on mean & variance of atlas Z scores
+% use LOOCV
+feat_matrix = []
+all_patient_indices = find([all_patients.hasData]);
+for pt = 1:length(all_patient_indices)
+    patient_index = all_patient_indices(pt);
+    
+    %feat1 = nanmean(all_patients(patient_index).z_scores(1).data.in_in(:));
+    feat1 = nanvar(all_patients(patient_index).z_scores(1).data.in_in(:));
+    feat2 = nanvar(all_patients(patient_index).z_scores(1).data.in_out(:));
+    %feat5 = nanmean(all_patients(patient_index).z_scores(1).data.out_out(:));
+    feat3 = nanvar(all_patients(patient_index).z_scores(1).data.out_out(:));
+    
+    feat_matrix(pt,:) = [feat1, feat2, feat3];
+    if strcmp(outcome_field{pt},'poor')
+        label_matrix(pt,:) = 0;
+    else
+        label_matrix(pt,:) = 1;
+    end
+end
+
+label_matrix = label_matrix+1;
+
+for i = 1:64
+    X_train = feat_matrix;
+    Y_train = label_matrix;
+    
+    X_train(i,:) = [];
+    Y_train(i,:) = [];
+    
+    X_test = feat_matrix(i,:);
+    Y_test = label_matrix(i,:);
+    
+    B = mnrfit(X_train,Y_train);
+    pihat = mnrval(B,X_test);
+    pred_scores(i,:) = pihat;
+end
+
+labels = pt_outcomes2;
+posclass = 2;
+[X_AUC,Y_AUC,T,AUC] = perfcurve(labels,pred_scores(:,1),posclass);
+
+figure(1);clf;
+hold on
+plot(X_AUC,Y_AUC,'b-','LineWidth',2)
+plot([0,1],[0,1],'k-.')
+%legend(sprintf('Pre-ictal epochs, AUC = %.2f',AUC_pre),sprintf('Ictal epochs, AUC = %.2f',AUC_ict),sprintf('Both epochs, AUC = %.2f',AUC_both),'Chance','Location','southeast')
+xlabel('False positive rate') 
+ylabel('True positive rate')
+title(sprintf('AUC = %.2f',AUC))
 
 %% do localization based on z score
 
@@ -231,7 +332,7 @@ node_threshold = 0.1;
 [poor_spared_abn, poor_spared_frac_abn] = compute_node_abnormality(poor_patient_spared_zscores(test_band).freq, edge_threshold, node_threshold);
 
 figure(1);clf;
-boxplot([good_frac_abn', [poor_frac_abn';NaN*ones(14,1)], good_spared_frac_abn', [poor_spared_frac_abn';NaN*ones(14,1)]])
+boxplot([good_frac_abn', [poor_frac_abn';NaN*ones((length(good_frac_abn)-length(poor_frac_abn)),1)], good_spared_frac_abn', [poor_spared_frac_abn';NaN*ones((length(good_frac_abn)-length(poor_frac_abn)),1)]])
 ylim([-0.1 1])
 ylabel('Fraction of abnormal nodes')
 h = findobj(gca,'Tag','Box');
@@ -349,6 +450,145 @@ hold off
 NL_HS_MCD = [1 2 3 5 6 7 14 17];
 NL_GL = [4 15 18 25 27 28 29];
 
+%% regress patient length of epilepsy with 
+% a. all global abnormalities
+% b. in-in abnormalities
+% c. in-out abnormalities
+% d. out-out abnormalities
+
+good_cond = [hasData_field{:}] & (strcmp(outcome_field,'good'));
+good_outcome_patients = all_patients(good_cond);
+
+test_band = 1;
+
+all_cond = find([hasData_field{:}]&(strcmp(outcome_field,'good')|strcmp(outcome_field,'poor')));
+all_data_patients = all_patients(all_cond);
+all_age_onset = good_outcome_patients(1).age_onset(all_cond);
+all_age_surg = good_outcome_patients(1).age_surgery(all_cond);
+
+all_epilepsy_duration = all_age_surg-all_age_onset;
+
+for s = 1:length(all_data_patients)
+    abs_mean_abn_all(s) = nanmean(nanmean((all_patients(all_cond(s)).z_scores(test_band).data.all)));
+    abs_mean_abn_in_in(s) = nanmean(nanmean((all_patients(all_cond(s)).z_scores(test_band).data.in_in)));
+    abs_mean_abn_in_out(s) = nanmean(nanmean((all_patients(all_cond(s)).z_scores(test_band).data.in_out)));
+    abs_mean_abn_out_out(s) = nanmean(nanmean((all_patients(all_cond(s)).z_scores(test_band).data.out_out)));
+end
+
+nan_inds = find(isnan(all_epilepsy_duration));
+all_epilepsy_duration(nan_inds) = [];
+all_age_surg(nan_inds) = [];
+
+abs_mean_abn_all(nan_inds) = [];
+abs_mean_abn_in_in(nan_inds) = [];
+abs_mean_abn_in_out(nan_inds) = [];
+abs_mean_abn_out_out(nan_inds) = [];
+
+features = [all_epilepsy_duration]%,all_age_surg];
+
+f1 = fitlm(features, abs_mean_abn_all');
+p1 = f1.Coefficients{2,4};
+b1 = f1.Coefficients{1,1}; m1a = f1.Coefficients{2,1}; %m1b = f1.Coefficients{3,3};
+
+f2 = fitlm(features, abs_mean_abn_in_in');
+p2 = f2.Coefficients{2,4};
+b2 = f2.Coefficients{1,1}; m2a = f2.Coefficients{2,1}; %m2b = f2.Coefficients{3,3};
+
+f3 = fitlm(features, abs_mean_abn_in_out');
+p3 = f3.Coefficients{2,4};
+b3 = f3.Coefficients{1,1}; m3a = f3.Coefficients{2,1}; %m3b = f3.Coefficients{3,3};
+
+f4 = fitlm(features, abs_mean_abn_out_out');
+p4 = f4.Coefficients{2,4};
+b4 = f4.Coefficients{1,1}; m4a = f4.Coefficients{2,1}; %m4b = f4.Coefficients{3,3};
+
+x1 = [min(all_epilepsy_duration), max(all_epilepsy_duration)];
+%x2 = [min(all_age_surg), max(all_age_surg)];
+
+%
+blue = [0, 0.4470, 0.7410];
+red = [0.6350, 0.0780, 0.1840];
+purple = [103 55 155]/255;
+
+figure(1);clf;
+subplot(1,3,1)
+hold on
+plot(all_epilepsy_duration,abs_mean_abn_in_in,'Color',red,'Marker','.','LineStyle','none','MarkerSize',24)
+plot(x1,[m2a.*x1+b2],'k-','LineWidth',2)
+txt2 = sprintf('p = %d',p2)
+%t2 = text(40,1.5,txt2)
+title('IN-IN connections')
+xlabel('Duration between first seizure and surgery (years)')
+ylabel('Mean atlas Z score')
+hold off
+subplot(1,3,2)
+hold on
+plot(all_epilepsy_duration,abs_mean_abn_in_out,'Color',purple,'Marker','.','LineStyle','none','MarkerSize',24)
+plot(x1,[m3a.*x1+b3],'k-','LineWidth',2)
+txt3 = sprintf('p = %d',p3)
+%t3 = text(40,1.5,txt3)
+title('IN-OUT connections')
+xlabel('Duration between first seizure and surgery (years)')
+ylabel('Mean atlas Z score')
+hold off
+subplot(1,3,3)
+hold on
+plot(all_epilepsy_duration,abs_mean_abn_out_out,'Color',blue,'Marker','.','LineStyle','none','MarkerSize',24)
+plot(x1,[m4a.*x1+b4],'k-','LineWidth',2)
+txt4 = sprintf('p = %d',p4)
+%t4 = text(40,1.5,txt4)
+title('OUT-OUT connections')
+xlabel('Duration between first seizure and surgery (years)')
+ylabel('Mean atlas Z score')
+hold off
+
+% figure 2: all 3 on same axes
+blue = [0, 0.4470, 0.7410];
+red = [0.6350, 0.0780, 0.1840];
+purple = [103 55 155]/255;
+
+% figure(2);clf;
+% hold on
+% plot(all_epilepsy_duration,abs_mean_abn_in_in,'Color',[red+(1-red)*0.5],'Marker','.','LineStyle','none','MarkerSize',24)
+% 
+% plot(all_epilepsy_duration,abs_mean_abn_in_out,'Color',[purple+(1-purple)*0.5],'Marker','.','LineStyle','none','MarkerSize',24)
+% 
+% plot(all_epilepsy_duration,abs_mean_abn_out_out,'Color',[blue+(1-blue)*0.5],'Marker','.','LineStyle','none','MarkerSize',24)
+% 
+% plot(x1,[m2.*x1+b2],'Color',red,'LineWidth',2)
+% plot(x1,[m3.*x1+b3],'Color',purple,'LineWidth',2)
+% plot(x1,[m4.*x1+b4],'Color',blue,'LineWidth',2)
+% xlabel('Duration between first seizure and surgery (years)')
+% ylabel('Mean atlas Z score')
+% legend('IN-IN','IN-OUT','OUT-OUT')
+% hold off
+
+%% test whether different global z score in patients with/without generalized seizures
+
+%%%%%%% how to assess if there are generalized sz? %%%%%%%%
+%%%% were recorded in emu? %%%% ever had a generalized sz? %%%% had before
+%%%% AED?
+
+test_band = 5;
+
+yes_cond = find([hasData_field{:}]&(strcmp(outcome_field,'good')|strcmp(outcome_field,'poor'))& strcmp(sz_field,'yes'));
+no_cond = find([hasData_field{:}]&(strcmp(outcome_field,'good')|strcmp(outcome_field,'poor'))& strcmp(sz_field,'no'));
+
+yes_patients = all_patients(yes_cond);
+no_patients = all_patients(no_cond);
+
+for s = 1:length(yes_patients)
+    yes_mean_abn(s) = nanmean(nanmean(((all_patients(yes_cond(s)).z_scores(test_band).data.in_in))));
+end
+
+for s = 1:length(no_patients)
+    no_mean_abn(s) = nanmean(nanmean(((all_patients(no_cond(s)).z_scores(test_band).data.in_in))));
+end
+
+figure(1);clf;
+boxplot([yes_mean_abn', [no_mean_abn';NaN*ones((length(yes_mean_abn)-length(no_mean_abn)),1)]])
+
+ranksum(yes_mean_abn,no_mean_abn)
 %% Clinical hypothesis testing
 % here we will simulate how the atlas could be used in a prospective manner
 
@@ -463,71 +703,3 @@ for s = [1:length(patient_hypothesis_list)]
 end
 
 pred_acc = mean((hyp_pred==true_targets),'omitnan')
-
-
-%% regress patient length of epilepsy with global abnormalities
-
-test_band = 1;
-
-all_cond = find([hasData_field{:}]&(strcmp(outcome_field,'good')|strcmp(outcome_field,'poor')));
-all_data_patients = all_patients(all_cond);
-all_age_onset = good_outcome_patients(1).age_onset(all_cond);
-all_age_surg = good_outcome_patients(1).age_surgery(all_cond);
-
-all_epilepsy_duration = all_age_surg-all_age_onset;
-
-for s = 1:length(all_data_patients)
-    abs_mean_abn(s) = nanmean(nanmean((all_patients(all_cond(s)).z_scores(test_band).data.all)));
-end
-
-nan_inds = find(isnan(all_epilepsy_duration));
-all_epilepsy_duration(nan_inds) = [];
-abs_mean_abn(nan_inds) = [];
-
-[r1, m1, b1] = regression(all_epilepsy_duration', abs_mean_abn)
-x1 = [min(all_epilepsy_duration), max(all_epilepsy_duration)];
-
-figure(1);clf;
-hold on
-plot(all_epilepsy_duration,abs_mean_abn,'k.')
-plot(x1,[m1.*x1+b1],'k-')
-xlabel('Duration of epilepsy before surgery (years)')
-ylabel('Mean edge Z score')
-txt = 'R = 0.47' %sprintf('rho = %d',r1);
-t = text(40,1.6,txt)
-txt2 = 'p-value = 0.001';
-t2 = text(40,1.5,txt2)
-hold off
-
-all_age_onset(nan_inds) = [];
-all_age_surg(nan_inds) = [];
-
-% have to repeat this with age of diagnosis and age of surgery
-[r2, m2, b2] = regression(all_age_onset', abs_mean_abn)
-[r3, m3, b3] = regression(all_age_surg', abs_mean_abn)
-%% test whether different global z score in patients with/without generalized seizures
-
-% @@@@@@@@@@@@@@@@@@@@@@@@@
-% @@@@@ doesn't work @@@@@@
-% @@@@@@@@@@@@@@@@@@@@@@@@@
-
-test_band = 1;
-
-yes_cond = find([hasData_field{:}]&(strcmp(outcome_field,'good')|strcmp(outcome_field,'poor'))& strcmp(sz_field,'yes'));
-no_cond = find([hasData_field{:}]&(strcmp(outcome_field,'good')|strcmp(outcome_field,'poor'))& strcmp(sz_field,'no'));
-
-yes_patients = all_patients(yes_cond);
-no_patients = all_patients(no_cond);
-
-for s = 1:length(yes_patients)
-    yes_mean_abn(s) = nanmean(nanmean(abs((all_patients(yes_cond(s)).z_scores(test_band).data.out_out))));
-end
-
-for s = 1:length(no_patients)
-    no_mean_abn(s) = nanmean(nanmean(abs((all_patients(no_cond(s)).z_scores(test_band).data.out_out))));
-end
-
-figure(1);clf;
-boxplot([yes_mean_abn', [no_mean_abn';NaN*ones(5,1)]])
-
-ranksum(yes_mean_abn,no_mean_abn)
