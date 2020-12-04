@@ -9,7 +9,7 @@ band_names = {'broadband','alpha-theta','beta','low-gamma','high-gamma'};
 base_path = '/Users/jbernabei/Documents/PhD_Research/ecog_seeg/ecog_vs_seeg';
 iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas';
 
-[all_patients, all_inds, all_locs, conn_field, coords_field, hasData_field, id_field,...
+[all_patients, all_inds, all_locs, conn_field, var_field, coords_field, hasData_field, hasVar_field, id_field,...
     implant_field, outcome_field, resect_field, roi_field, target_field,...
     therapy_field, region_list, region_name, lesion_field,...
     sz_field] = set_up_workspace(iEEG_atlas_path);
@@ -21,8 +21,12 @@ test_band = 1;
 
 test_threshold = 3;
 good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
+good_patient_indices_var = find((hasVar_field) & strcmp({all_patients.outcome},'good'));
+
 cv_patients = all_patients(good_patient_indices);
+cv_patients_var = all_patients(good_patient_indices_var);
 [mean_conn, std_conn, num_samples, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
+[mean_var, std_var, num_samples_var, sem_var] = create_atlas({cv_patients_var.var}, {cv_patients_var.roi}, {cv_patients_var.resect}, region_list, test_band, test_threshold);
 
 num_samples(num_samples==0) = NaN;
 median_connectivity(num_samples==0) = NaN;
@@ -31,14 +35,19 @@ median_connectivity(num_samples==0) = NaN;
 lobe_table = readtable('lobes_aal.xlsx')
 
 figure(1);clf;
-subplot(1,2,2)
+subplot(1,3,2)
 imagesc(mean_conn)
 title('median connectivity')
 colormap(color_bar)
 colorbar
-subplot(1,2,1)
+subplot(1,3,1)
 imagesc(num_samples)
 title('number of samples')
+colorbar
+subplot(1,3,3)
+imagesc(mean_var)
+title('median var')
+colormap(color_bar)
 colorbar
 
 %% find z scores
@@ -138,6 +147,111 @@ for atlas_method = ["patient","not edge"]
             all_patients(poor_patient_indices(s)).z_scores(test_band).data.out_out = out_out_scores;
             all_patients(poor_patient_indices(s)).z_scores(test_band).data.in_in = in_in_scores;
             all_patients(poor_patient_indices(s)).z_scores(test_band).data.in_out = in_out_scores;
+
+            fprintf(repmat('\b',1,line_length))
+
+        end
+        
+    end
+end
+
+%% find  VAR z scores
+
+test_threshold = 7; % main results for = 7
+
+good_patient_indices_var = find(hasVar_field & strcmp({all_patients.outcome},'good'));
+poor_patient_indices_var = find(hasVar_field & strcmp({all_patients.outcome},'poor'));
+
+for atlas_method = ["patient","not edge"]
+    for test_band = 1:5
+        % cross-validation of good-outcome patients
+        for s = 1:length(good_patient_indices_var)
+            test_patient = all_patients(good_patient_indices_var(s));
+            cv_patients = all_patients(good_patient_indices_var);
+            cv_patients(s) = [];
+            
+            if strcmp(test_patient.therapy,'Resection')
+               target_good(s) = 1;
+            elseif strcmp(test_patient.therapy,'Ablation')
+                target_good(s) = 2;
+            else
+                target_good(s) = 0;
+            end
+            
+            patient_id = test_patient.patientID;
+
+            line_length = fprintf('Testing %s...', test_patient.patientID);
+
+            [out_out_scores ,in_in_scores, in_out_scores, all_scores] =...
+                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method);
+
+            % get all good outcome patient zscores
+            good_patient_zscores(test_band).freq{s} = abs(all_scores);
+            good_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
+            
+            good_outcome_out_out(s,test_band) = nanmedian(nanmedian((out_out_scores)));
+            good_outcome_in_out(s,test_band) = nanmedian(nanmedian((in_out_scores)));
+            good_outcome_in_in(s,test_band) = nanmedian(nanmedian((in_in_scores)));
+            
+            good_outcome_out_out_2(s,test_band) = nanvar(out_out_scores(:));
+            good_outcome_in_out_2(s,test_band) = nanvar(in_out_scores(:));
+            good_outcome_in_in_2(s,test_band) = nanvar(in_in_scores(:));
+            
+            good_outcome_all_var(s,test_band) = nanvar(all_scores(:));
+            
+            % place results into all_patients
+            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.all = all_scores;
+            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.out_out = out_out_scores;
+            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.in_in = in_in_scores;
+            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.in_out = in_out_scores;
+
+            if strcmp(test_patient.therapy,'Ablation')
+                [threshold_results(s,test_band),threshold_accuracies(s,test_band)] =...
+                    get_optimal_threshold(out_out_scores,in_in_scores);
+            end
+
+            fprintf(repmat('\b',1,line_length))
+
+        end
+        
+        cv_patients = all_patients(good_patient_indices_var);
+
+        % cross-validation of poor-outcome patients
+        for s = 1:length(poor_patient_indices_var)
+            test_patient = all_patients(poor_patient_indices_var(s));
+            
+            if strcmp(test_patient.therapy,'Resection') 
+               target_poor(s) = 1;
+            elseif strcmp(test_patient.therapy,'Ablation') 
+                target_poor(s) = 2;
+            else
+                target_poor(s) = 0;
+            end
+
+            line_length = fprintf('Testing %s...', test_patient.patientID);
+
+            [out_out_scores, in_in_scores, in_out_scores ,all_scores] = ...
+                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method);
+
+            % get all good outcome patient zscores
+            poor_patient_zscores(test_band).freq{s} = abs(all_scores);
+            poor_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
+            
+            poor_outcome_out_out(s,test_band) = nanmedian(nanmedian((out_out_scores)));
+            poor_outcome_in_out(s,test_band) = nanmedian(nanmedian((in_out_scores)));
+            poor_outcome_in_in(s,test_band) = nanmedian(nanmedian((in_in_scores)));
+            
+            poor_outcome_out_out_2(s,test_band) = nanvar(out_out_scores(:));
+            poor_outcome_in_out_2(s,test_band) = nanvar(in_out_scores(:));
+            poor_outcome_in_in_2(s,test_band) = nanvar(in_in_scores(:));
+            
+            poor_outcome_all_var(s,test_band) = nanvar(all_scores(:));
+            
+            % place results into all_patients
+            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.all = all_scores;
+            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.out_out = out_out_scores;
+            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.in_in = in_in_scores;
+            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.in_out = in_out_scores;
 
             fprintf(repmat('\b',1,line_length))
 

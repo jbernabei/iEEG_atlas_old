@@ -1,5 +1,5 @@
-function [all_patients, all_inds, all_locs, conn_field, coords_field, ...
-    hasData_field, id_field, implant_field, outcome_field, resect_field, ...
+function [all_patients, all_inds, all_locs, conn_field, var_field, coords_field, ...
+    hasData_field, hasVar_field, id_field, implant_field, outcome_field, resect_field, ...
     roi_field, target_field, therapy_field, region_list, region_names, ...
     lesion_field, sz_field] = set_up_workspace(iEEG_atlas_path)
 
@@ -23,6 +23,7 @@ poor_outcome_pts = {'HUP060','HUP075','HUP078','HUP112','HUP133','HUP138','HUP14
 % place patients in a struct, extracting all relevant metadata
 all_patients = struct('patientID',metadata.Patient, ...
 'outcome', metadata.Outcome,'conn',cell(length(metadata.Patient),1), ...
+'var',cell(length(metadata.Patient),1), ...
 'coords',cell(length(metadata.Patient),1), ...
 'roi',cell(length(metadata.Patient),1), ...
 'resect',cell(length(metadata.Patient),1), ...
@@ -44,6 +45,7 @@ all_locs = [atlas_info{2}];
 % set up arrays to store data
 id_field = {all_patients.patientID};
 conn_field = {all_patients.conn};
+var_field = {all_patients.var};
 coords_field = {all_patients.coords};
 roi_field = {all_patients.coords};
 resect_field = {all_patients.resect};
@@ -67,6 +69,12 @@ for k = 1:length(metadata.Patient)
         fprintf('%s: ',datapath)
         d = load(datapath);
         conn_field{k} = d.II_conn;
+        try var_field{k} = d.II_std;
+            hasVar_field(k) = 1;
+        catch ME
+            var_field{k} = [];
+            hasVar_field(k) = 0;
+        end
         if sum(sum(~isnan(d.II_conn(1).data))) == 0
             hasData_field{k} = false;
             fprintf('(connectivity data is all NaNs!)\n')
@@ -100,6 +108,7 @@ end
 
 % place data back into main struct
 [all_patients.conn] = conn_field{:};
+[all_patients.var] = var_field{:};
 [all_patients.coords] = coords_field{:};
 [all_patients.roi] = roi_field{:};
 [all_patients.resect] = resect_field{:};
