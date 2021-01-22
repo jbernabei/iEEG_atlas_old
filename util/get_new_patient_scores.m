@@ -1,4 +1,4 @@
-function [out_out_scores, in_in_scores, in_out_scores, all_scores] = get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,score_denominator,atlas_method)
+function [out_out_scores, in_in_scores, in_out_scores, all_scores] = get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,score_denominator,atlas_method,mapping_type)
 
 % score_denominator is a string that can be either "std" or "sem"
 % atlas_method is a string that can be either "patient" or "edge"
@@ -10,11 +10,21 @@ if ~exist('atlas_method','var'), atlas_method = "patient"; end
 
 % get connectivity atlas of excluded patients
 [mean_conn, std_conn, ~, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
+%[mean_var, std_var, ~, sem_var] = create_atlas({cv_patients.var}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
 
+if strcmp(mapping_type,'conn')
 if score_denominator=='sem'
     score_matrix = test_native_adj(test_patient.conn, test_patient.roi, mean_conn, nanmean(nanmean(sem_conn)), region_list, test_band);
 else
     score_matrix = test_native_adj(test_patient.conn, test_patient.roi, mean_conn, nanmean(nanmean(std_conn)), region_list, test_band);
+end
+
+else
+if score_denominator=='sem'
+    score_matrix = test_native_adj(test_patient.var, test_patient.roi, mean_var, nanmean(nanmean(sem_var)), region_list, test_band);
+else
+    score_matrix = test_native_adj(test_patient.var, test_patient.roi, mean_var, nanmean(nanmean(std_var)), region_list, test_band);
+end
 end
 
 num_elecs = size(test_patient.conn(1).data,1);

@@ -17,16 +17,16 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
 load color_bar
 load color_bar_alt
 %% get basic atlas info
-test_band = 1;
+test_band = 3;
 
-test_threshold = 3;
+test_threshold = 5;
 good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
 good_patient_indices_var = find((hasVar_field) & strcmp({all_patients.outcome},'good'));
 
 cv_patients = all_patients(good_patient_indices);
 cv_patients_var = all_patients(good_patient_indices_var);
-[mean_conn, std_conn, num_samples, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
-[mean_var, std_var, num_samples_var, sem_var] = create_atlas({cv_patients_var.var}, {cv_patients_var.roi}, {cv_patients_var.resect}, region_list, test_band, test_threshold);
+[median_conn, std_conn, num_samples, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
+[median_var, std_var, num_samples_var, sem_var] = create_atlas({cv_patients_var.var}, {cv_patients_var.roi}, {cv_patients_var.resect}, region_list, test_band, test_threshold);
 
 num_samples(num_samples==0) = NaN;
 median_connectivity(num_samples==0) = NaN;
@@ -36,7 +36,7 @@ lobe_table = readtable('lobes_aal.xlsx')
 
 figure(1);clf;
 subplot(1,3,2)
-imagesc(mean_conn)
+imagesc(median_conn)
 title('median connectivity')
 colormap(color_bar)
 colorbar
@@ -45,16 +45,55 @@ imagesc(num_samples)
 title('number of samples')
 colorbar
 subplot(1,3,3)
-imagesc(mean_var)
+imagesc(median_var)
 title('median var')
 colormap(color_bar)
 colorbar
 
+var_nan = isnan(median_var);
+conn_nan = isnan(median_conn);
+samples_nan = (num_samples<7);
+final_nan = (var_nan+conn_nan+samples_nan);
+not_nan = find(final_nan==0);
+
+[c1, p1] = corr(median_var(not_nan),median_conn(not_nan))
+[c2, p2] = corr(median_var(not_nan),num_samples(not_nan))
+[c3, p3] = corr(median_conn(not_nan),num_samples(not_nan))
+[c4, p4] = corr(num_samples(not_nan),std_conn(not_nan))
+
+figure(2);clf;
+subplot(1,3,1)
+plot(median_var(not_nan),median_conn(not_nan),'ko')
+subplot(1,3,2)
+plot(num_samples(not_nan),median_var(not_nan),'ko')
+subplot(1,3,3)
+plot(num_samples(not_nan),median_conn(not_nan),'ko')
+
+figure(3);clf;
+subplot(1,3,1)
+plot(median_conn(not_nan),std_conn(not_nan),'ko')
+subplot(1,3,2)
+plot(num_samples(not_nan),std_conn(not_nan),'ko')
+subplot(1,3,3)
+plot(num_samples(not_nan),std_var(not_nan),'ko')
+
+figure(4);clf;
+scatter(median_var(not_nan),std_conn(not_nan),num_samples(not_nan),num_samples(not_nan),'filled')
+colormap jet
+colorbar
+xlabel('Mean within-patient variance')
+ylabel('Stdev in avg connectivity')
+
+
+
+
+
 %% find z scores
 
-test_threshold = 7; % main results for = 7
+test_threshold = 5; % main results for = 7
 
 good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
+%good_patient_indices = find((hasVar_field) & strcmp({all_patients.outcome},'good'));
 poor_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor'));
 
 for atlas_method = ["patient","not edge"]
@@ -78,8 +117,20 @@ for atlas_method = ["patient","not edge"]
             line_length = fprintf('Testing %s...', test_patient.patientID);
 
             [out_out_scores ,in_in_scores, in_out_scores, all_scores] =...
-                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method);
+                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method,'conn');
 
+%             [out_out_scores_var ,in_in_scores_var, in_out_scores_var, all_scores_var] =...
+%                 get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method,'var');
+
+            % * for new variance mapping *
+%             good_patient_zscores_var(test_band).freq{s} = abs(all_scores_var);
+%             good_patient_spared_zscores_var(test_band).freq{s} = abs(out_out_scores_var);
+%             
+%             good_outcome_out_out_var(s,test_band) = nanmedian(nanmedian((out_out_scores_var)));
+%             good_outcome_in_out_var(s,test_band) = nanmedian(nanmedian((in_out_scores_var)));
+%             good_outcome_in_in_var(s,test_band) = nanmedian(nanmedian((in_in_scores_var)));
+%             
+            
             % get all good outcome patient zscores
             good_patient_zscores(test_band).freq{s} = abs(all_scores);
             good_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
@@ -126,7 +177,7 @@ for atlas_method = ["patient","not edge"]
             line_length = fprintf('Testing %s...', test_patient.patientID);
 
             [out_out_scores, in_in_scores, in_out_scores ,all_scores] = ...
-                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method);
+                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method,'conn');
 
             % get all good outcome patient zscores
             poor_patient_zscores(test_band).freq{s} = abs(all_scores);

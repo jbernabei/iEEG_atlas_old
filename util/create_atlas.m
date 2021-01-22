@@ -1,4 +1,4 @@
-function [mean_conn, std_conn, num_samples, sem_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold, silence_output)
+function [median_conn, std_conn, num_samples, sem_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold, silence_output)
 % [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -41,7 +41,7 @@ num_patients = length(all_conn);
 num_regions = length(region_list);
 
 % initialize output array to store connection strengths
-mean_conn = NaN(90,90,num_patients);
+median_conn = NaN(90,90,num_patients);
 
 if ~silence_output, fprintf("Calculating connections  "); end
 
@@ -87,11 +87,11 @@ for p = 1:num_patients
         
         % calculate connections within the region
         patient_strengths = first_reg_strengths(:,first_reg_elec);
-        patient_strength = nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));%nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
+        patient_strength = nanmedian(patient_strengths(triu(true(size(patient_strengths)),1)));%nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
         
         % add to output array if the region contains any electrodes
         if ~isnan(patient_strength)
-            mean_conn(i,i,p) = patient_strength;
+            median_conn(i,i,p) = patient_strength;
         else
             % skip calculations for this region pair if the first region
             % does not contain any electrodes
@@ -107,30 +107,30 @@ for p = 1:num_patients
             patient_strengths = first_reg_strengths(:,second_reg_elec);
             
             % average connection strengths between the two regions
-            patient_strength = sum(sum(patient_strengths))/numel(patient_strengths);
+            patient_strength = nanmedian(patient_strengths(:));
             
             % add to output array
-            mean_conn(i,j,p) = patient_strength;
+            median_conn(i,j,p) = patient_strength;
         end
     end
 end
 
 % take the standard deviation element-wise to get the std matrix
-std_conn = std(mean_conn,0,3,'omitnan');
+std_conn = std(median_conn,0,3,'omitnan');
 
 % get the number of samples available for each edge
-num_samples = sum(~isnan(mean_conn),3);
+num_samples = sum(~isnan(median_conn),3);
 
 % get the sem
 sem_conn = std_conn./sqrt(num_samples);
 sem_conn(isinf(sem_conn)) = NaN;
 
-% divide out the number of patients element-wise to get the mean matrix
-mean_conn = mean(mean_conn,3,'omitnan');
+% divide out the number of patients element-wise to get the median matrix
+median_conn = median(median_conn,3,'omitnan');
 
 % remove edge values and standard deviations for edges with sample sizes
 % less than the threshold
-mean_conn(num_samples < threshold) = NaN;
+median_conn(num_samples < threshold) = NaN;
 std_conn(num_samples < threshold) = NaN;
 sem_conn(num_samples < threshold) = NaN;
 
