@@ -11,11 +11,469 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
 
 [all_patients, all_inds, all_locs, conn_field, var_field, coords_field, hasData_field, hasVar_field, id_field,...
     implant_field, outcome_field, resect_field, roi_field, target_field,...
-    therapy_field, region_list, region_name, lesion_field,...
+    therapy_field, lesion_field,...
     sz_field] = set_up_workspace(iEEG_atlas_path);
 
 load color_bar
 load color_bar_alt
+%% need to define some localization
+all_roi_cell = [];
+for i = 1:50
+    all_roi_cell = [all_roi_cell;all_patients(i).roi_list];
+end
+
+unique_roi = unique(all_roi_cell);
+for j  = 1:length(unique_roi)
+    num_roi(j,1) = sum(strcmp(all_roi_cell,unique_roi(j)));
+end
+
+[A,B] = sort(num_roi,'descend');
+
+ranked_roi = unique_roi(B);
+
+frontal_cortex = {'SFG';'MFG';'IFG';'precentral';'OrG'};
+temporoparietal_cortex = {'MTG';'ITG';'STG';'FuG';'AnG';'SMG';'SPL';'postcentral'};
+paralimbic = {'Hippocampus';'Amygdala';'PHG';'cingulate';'insula'};
+
+all_template_roi = [frontal_cortex;temporoparietal_cortex;paralimbic];
+
+[data_structure_new] = process_roi_seg(all_patients,all_template_roi);
+%% determine fraction of in-in edges that are within roi
+for s = 1:50
+    clear in_in_mat
+    num_nodes = length(data_structure_new(s).final_roi);
+    for e1 = 1:num_nodes
+        for e2 = 1:num_nodes
+            if data_structure_new(s).final_roi(e2)==data_structure_new(s).final_roi(e1)
+                in_in_mat(e1,e2) = 1;
+            else
+                in_in_mat(e1,e2) = 0;
+            end
+        end
+    end
+    in_in_all = in_in_mat(data_structure_new(s).resect,data_structure_new(s).resect);
+    in_in_frac_intra(s) = mean(in_in_all(:));
+end
+
+abl_inds = in_in_frac_intra(strcmp({all_patients.therapy},'Ablation'));
+res_inds = in_in_frac_intra(strcmp({all_patients.therapy},'Resection'));
+
+figure(1);clf;
+boxplot([res_inds',abl_inds'])
+xticks([1,2])
+xticklabels({'Resection','Ablation'})
+ylabel('Fraction of within-ROI targeted edges')
+ranksum(abl_inds,res_inds)
+ylim([0, 1.2])
+%% temporal / frontal / outcome
+temp_good = sum([[strcmp({all_patients.target},'Temporal')+strcmp({all_patients.target},'MTL')]'.*strcmp({all_patients.outcome},'good')']);
+temp_poor = sum([[strcmp({all_patients.target},'Temporal')+strcmp({all_patients.target},'MTL')]'.*strcmp({all_patients.outcome},'poor')']);
+front_good = sum([[strcmp({all_patients.target},'Frontal')+strcmp({all_patients.target},'MFL')]'.*strcmp({all_patients.outcome},'good')']);
+front_poor = sum([[strcmp({all_patients.target},'Frontal')+strcmp({all_patients.target},'MFL')]'.*strcmp({all_patients.outcome},'poor')']);
+
+p = chi2Tests([temp_good,temp_poor;front_good,front_poor])
+%% first need to find whether relationship within ROI is linear 
+
+% loop through ROI
+for r = 1:length(all_template_roi)
+    this_roi = r;
+    all_template_roi(r)
+    intra_roi_conn(r).dist = [];
+    for f = 1:5
+        intra_roi_conn(r).freq(f).data = [];
+        
+    end
+    % loop through patients
+    for i = 1:50
+    this_pt_roi = data_structure_new(i).final_roi;
+    
+    left_region = find(this_pt_roi==this_roi);
+    right_region = find(this_pt_roi==(this_roi+length(all_template_roi)));
+    
+    if length(left_region)>1
+        
+        dist_matrix = triu(data_structure_new(i).dist_mat);
+        this_roi_dist = dist_matrix(left_region,left_region);
+        dist_vec = this_roi_dist(:);
+        intra_roi_conn(r).dist = [intra_roi_conn(r).dist;dist_vec];
+        intra_roi_conn(r).dist(intra_roi_conn(r).dist==0) = [];
+        
+        fprintf('more than 1 node on left\n')
+        for f = 1:5
+            triu_matrix = triu(data_structure_new(i).conn(f).data);
+            
+            this_roi_conn = triu_matrix(left_region,left_region);
+            
+            roi_conn_vec = this_roi_conn(:);
+            
+            
+            
+            
+           
+            
+            intra_roi_conn(r).freq(f).data = [intra_roi_conn(r).freq(f).data;roi_conn_vec];
+            intra_roi_conn(r).freq(f).data(intra_roi_conn(r).freq(f).data==0) = [];
+            
+            
+        end
+    end      
+    
+    if length(right_region)>1
+        fprintf('more than 1 node on right\n')
+        
+        dist_matrix = triu(data_structure_new(i).dist_mat);
+        this_roi_dist = dist_matrix(right_region,right_region);
+        dist_vec = this_roi_dist(:);
+        intra_roi_conn(r).dist = [intra_roi_conn(r).dist;dist_vec];
+        intra_roi_conn(r).dist(intra_roi_conn(r).dist==0) = [];
+        
+        for f = 1:5
+            triu_matrix = triu(data_structure_new(i).conn(f).data);
+            
+            this_roi_conn = triu_matrix(right_region,right_region);
+            
+            roi_conn_vec = this_roi_conn(:);
+            
+         
+            
+            
+            
+            intra_roi_conn(r).freq(f).data = [intra_roi_conn(r).freq(f).data;roi_conn_vec];
+            intra_roi_conn(r).freq(f).data(intra_roi_conn(r).freq(f).data==0) = [];
+            
+            
+        end
+    end
+    % check if patient has at least one within-ROI connection
+    end
+end
+
+%% do within - roi distance regression (store p values)
+figure(1);clf;
+for f = 1:5
+    all_conn = [];
+    all_dist = [];
+for r = [1:6,8:18]
+    all_conn = [all_conn;intra_roi_conn(r).freq(f).data];
+    all_dist = [all_dist;intra_roi_conn(r).dist];
+end
+    mdl=fit(all_dist,all_conn,'rat11');
+    
+    xvals = linspace(min(all_dist),max(all_dist),100);
+    ypred = (mdl.p1.*xvals+mdl.p2)./(xvals+mdl.q1);
+    figure(1)
+    subplot(1,5,f)
+    hold on
+    plot(all_dist,all_conn,'ko')
+    plot(xvals,ypred,'r-','LineWidth',2)
+    hold off
+    
+    intra_roi_curve(f).mdl = mdl;
+    
+    if f==2
+        figure(2);clf;
+        subplot(1,2,1)
+        ypred = (mdl.p1.*all_dist+mdl.p2)./(all_dist+mdl.q1);
+        residuals = all_conn-ypred;
+        plot(all_dist,residuals,'ko')
+        
+        for j = 1:8
+            upper_bound = 10*j;
+            lower_bound = 10*(j-1)+1;
+            which_inds = find([all_dist>lower_bound].*[all_dist<upper_bound]);
+            std_val(j) = std(abs(residuals(which_inds))) 
+            
+        end
+        std_val(7) = [];
+        subplot(1,2,2)
+        plot(std_val,'ko')
+        mdl = fitlm([5:10:55,75],std_val)
+    end
+end
+
+%% construct atlas with good outcome patients -> within ROI optional
+test_band = 2;
+test_threshold = 5;
+good_patient_indices = find([data_structure_new.hasData] & strcmp({data_structure_new.outcome},'good'))
+     
+cv_patients = data_structure_new(good_patient_indices);
+[median_conn, var_conn, num_samples, sem_conn] = create_atlas_seg({cv_patients.conn}, {cv_patients.final_roi}, {cv_patients.resect}, [1:(length(all_template_roi)*2)], test_band, test_threshold);
+[median_var, var_var, num_samples, sem_var] = create_atlas_seg({cv_patients.var}, {cv_patients.final_roi}, {cv_patients.resect}, [1:(length(all_template_roi)*2)], test_band, test_threshold);
+
+
+figure(1);clf;
+subplot(1,3,1)
+imagesc(median_conn)
+colorbar
+subplot(1,3,2)
+imagesc(var_conn)
+colorbar
+subplot(1,3,3)
+imagesc(median_var)
+colorbar
+
+figure(2);clf;
+imagesc(median_var./var_conn)
+colorbar 
+
+
+%% Do test atlas! need to write a new function
+% to get z score calculate mean variance in each of the three systems
+good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
+poor_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor'));
+
+
+for t = 1:10
+test_threshold = t;
+% test good patients
+for f = 1:5
+    test_band = f;
+for s = 1:length(good_patient_indices)
+    % create atlas from all other good outcome patients
+    test_patient = data_structure_new(good_patient_indices(s));
+    cv_patients = data_structure_new(good_patient_indices);
+    cv_patients(s) = [];
+    
+    % calculate atlas
+    [median_conn, var_conn, num_samples, sem_conn] = create_atlas_seg({cv_patients.conn}, {cv_patients.final_roi}, {cv_patients.resect}, [1:(length(all_template_roi)*2)], test_band, test_threshold);
+
+    % test atlas
+    [score_mat, corr_val,corr_val_out,corr_val_in,corr_val_intra,corr_val_inter,roi_mat] = test_patient_conn_seg(median_conn, 0.036, intra_roi_curve(test_band).mdl, test_patient.coords, test_patient.conn(test_band).data, test_patient.final_roi,test_patient.resect);
+    
+    cv_results(good_patient_indices(s)).freq(f).score = score_mat;
+    roi_mat_all(good_patient_indices(s)).freq(f).score = roi_mat;
+    cv_corr(good_patient_indices(s),f) = corr_val;
+    cv_corr_out(good_patient_indices(s),f) = corr_val_out;
+    cv_corr_in(good_patient_indices(s),f) = corr_val_in;
+    cv_corr_intra(good_patient_indices(s),f) = corr_val_intra;
+    cv_corr_inter(good_patient_indices(s),f) = corr_val_inter;
+    
+end
+
+% make atlas with all good outcome patients
+cv_patients = data_structure_new(good_patient_indices);
+[median_conn, var_conn, num_samples, sem_conn] = create_atlas_seg({cv_patients.conn}, {cv_patients.final_roi}, {cv_patients.resect}, [1:(length(all_template_roi)*2)], test_band, test_threshold);
+
+for s = 1:length(poor_patient_indices)
+    test_patient = data_structure_new(poor_patient_indices(s));
+    [score_mat, corr_val,corr_val_out,corr_val_in,corr_val_intra,corr_val_inter,roi_mat] = test_patient_conn_seg(median_conn, 0.036, intra_roi_curve(test_band).mdl, test_patient.coords, test_patient.conn(test_band).data, test_patient.final_roi,test_patient.resect);
+    cv_results(poor_patient_indices(s)).freq(f).score = score_mat;
+    roi_mat_all(poor_patient_indices(s)).freq(f).score = roi_mat;
+    cv_corr(poor_patient_indices(s),f) = corr_val;
+    cv_corr_out(poor_patient_indices(s),f) = corr_val_out;
+    cv_corr_in(poor_patient_indices(s),f) = corr_val_in;
+    
+    cv_corr_intra(poor_patient_indices(s),f) = corr_val_intra;
+    cv_corr_inter(poor_patient_indices(s),f) = corr_val_inter;
+    
+end
+
+    
+end
+    cv_corr_inter_all(t,:) = nanmean(cv_corr_inter);
+end
+
+%%
+figure(1);clf;
+plot(cv_corr_inter_all)
+xlabel('minimum number of edges')
+ylabel('inter-regional correlation')
+
+%% temporal vs frontal
+limb_inds = find([strcmp({all_patients.target},'MFL')+strcmp({all_patients.target},'MTL')]'+[strcmp({all_patients.target},'Insular')]')
+front_inds = find([strcmp({all_patients.target},'Frontal')])
+temp_inds = find([strcmp({all_patients.target},'Temporal')]')
+
+temp_all_mat = [];
+front_all_mat = [];
+limb_all_mat = [];
+a = 0;
+b = 0;
+c = 0;
+f = 3;
+for s = 1:50
+    if sum(temp_inds==s)>0
+        a = a+1;
+        roi_mat = median(abs(roi_mat_all(s).freq(f).score),3,'omitnan');
+        
+        temp_all_mat(:,:,a) = roi_mat;
+    elseif sum(front_inds==s)>0
+        b = b+1;
+        roi_mat = median(abs(roi_mat_all(s).freq(f).score),3,'omitnan');
+        front_all_mat(:,:,b) = roi_mat;
+    elseif sum(limb_inds==s)>0
+        c = c+1;
+        roi_mat = median(abs(roi_mat_all(s).freq(f).score),3,'omitnan');
+        limb_all_mat(:,:,c) = roi_mat;
+    end
+end
+
+
+figure(1);clf;
+subplot(1,2,1)
+imagesc(median(abs(temp_all_mat),3,'omitnan'))
+subplot(1,2,2)
+imagesc(median(abs(front_all_mat),3,'omitnan'))
+
+f_t = squeeze((temp_all_mat(1,1,:)))
+t_t = squeeze((temp_all_mat(2,2,:)))
+l_t = squeeze((temp_all_mat(3,3,:)))
+
+f_f = squeeze((front_all_mat(1,1,:)))
+t_f = squeeze((front_all_mat(2,2,:)))
+l_f = squeeze((front_all_mat(3,3,:)))
+
+f_l = squeeze((limb_all_mat(1,1,:)))
+t_l = squeeze((limb_all_mat(2,2,:)))
+l_l = squeeze((limb_all_mat(3,3,:)))
+
+figure(2);clf;
+subplot(1,3,1)
+boxplot([f_t,t_t,l_t])
+title('Lateral temporal lobe epilepsy')
+xticks([1:3])
+xticklabels({'Frontal network','Temporoparietal network','Paralimbic network'})
+ylabel('Median edge abnormality')
+subplot(1,3,2)
+boxplot([f_f,t_f,l_f])
+title('Frontal lobe epilepsy excluding MFL')
+xticks([1:3])
+xticklabels({'Frontal network','Temporoparietal network','Paralimbic network'})
+ylabel('Median edge abnormality')
+subplot(1,3,3)
+boxplot([f_l,t_l,l_l])
+title('MTLE + MFLE + Insular')
+xticks([1:3])
+xticklabels({'Frontal network','Temporoparietal network','Paralimbic network'})
+ylabel('Median edge abnormality')
+
+%% figure 1: predictive accuracy
+figure(1);clf;
+hold on
+boxplot([cv_corr_intra(:,1),cv_corr_inter(:,1),...
+         cv_corr_intra(:,2),cv_corr_inter(:,2),...
+         cv_corr_intra(:,3),cv_corr_inter(:,3),...
+         cv_corr_intra(:,4),cv_corr_inter(:,4),...
+         cv_corr_intra(:,5),cv_corr_inter(:,5)])
+h = findobj(gca,'Tag','Box');
+set(gca,'xtick',[1.5:2:5.5],'xticklabel',{'Intralobar','Interlobar','Interhemispheric'});
+colors = [color2; color1; color2; color1; color2; color1;color2; color1;color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+
+xticks([1.5:2:9.5])
+xticklabels({'Broadband','Alpha/Theta','Beta','Low-Gamma','High-Gamma'})
+ylabel('Pearson correlation')
+threshold_corrs(:,t) = mean(cv_corr);
+
+%% analysis -> extract in-in, in-out, and out-out
+
+length_epilepsy = all_patients(1).age_surgery-all_patients(1).age_onset;
+for f = 3
+for s = 1:50
+    res_elecs = data_structure_new(s).resect; % resected electrodes
+    num_elecs = size(cv_results(s).freq(f).score,1); % number of total elecs
+    non_res_elecs = setdiff([1:num_elecs],res_elecs); % non-resected elecs
+    in_out_conns(s).data = cv_results(s).freq(f).score;
+    in_out_conns(s).data(res_elecs,res_elecs) = NaN;
+    in_out_conns(s).data(non_res_elecs,non_res_elecs) = NaN;
+    in_in_conns(s).data = cv_results(s).freq(f).score(res_elecs,res_elecs);
+    mean_in_in(s,f) = nanmean(in_in_conns(s).data(:));
+    mean_in_out(s,f) = nanmean(in_out_conns(s).data(:));
+    frac_in_in(s,f) = mean(abs(in_in_conns(s).data(:))>2);
+    score_placehold = cv_results(s).freq(f).score;
+    score_placehold(res_elecs,:) = [];
+    score_placehold(:,res_elecs) = [];
+    out_out_conns(s).data = score_placehold;
+    mean_out_out(s,f) = nanmean(out_out_conns(s).data(:));
+    var_out_out(s,f) = nanvar(out_out_conns(s).data(:));
+    frac_out_out(s,f) = mean(abs(out_out_conns(s).data(:))>2);
+    frac_in_out(s,f) = mean(abs(in_out_conns(s).data(:))>2);
+end
+figure(f);clf;
+hold on
+plot(mean_in_in(:,f),length_epilepsy,'ko')
+mdl = fitlm(mean_in_in(:,f),length_epilepsy)
+%title('regression slope p = 0.0015')
+hold off
+end
+
+
+%% figure 3: relate with presence of generalized seizures
+has_gen = strcmp({all_patients.generalized_sz}','yes');
+no_gen = strcmp({all_patients.generalized_sz}','no');
+
+ranksum(abs(mean_out_out(has_gen,3)),abs(mean_out_out(no_gen,3)))
+
+ranksum(abs(mean_in_in(has_gen,3)),abs(mean_in_in(no_gen,3)))
+
+ranksum(abs(mean_in_out(has_gen,3)),abs(mean_in_out(no_gen,3)))
+
+in_frac_pval = ranksum(frac_in_in(has_gen,f),frac_in_in(no_gen,f))
+in_out_frac_pval = ranksum(frac_in_out(has_gen,f),frac_in_out(no_gen,f))
+out_frac_pval = ranksum(frac_out_out(has_gen,f),frac_out_out(no_gen,f))
+%%
+good_abl_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
+poor_abl_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor'));
+
+for f = 3
+out_pval = ranksum(abs(mean_out_out(good_abl_indices,f)),abs(mean_out_out(poor_abl_indices,f)))
+out_var_pval = ranksum(var_out_out(good_abl_indices,f),var_out_out(poor_abl_indices,f))
+out_frac_pval = ranksum(frac_out_out(good_abl_indices,f),frac_out_out(poor_abl_indices,f))
+in_out_pval = ranksum(mean_in_out(good_abl_indices,f),mean_in_out(poor_abl_indices,f))
+in_frac_pval = ranksum(frac_in_in(good_abl_indices,f),frac_in_in(poor_abl_indices,f))
+in_out_frac_pval = ranksum(frac_in_out(good_abl_indices,f),frac_in_out(poor_abl_indices,f))
+
+in_pval = ranksum(abs(mean_in_in(good_abl_indices,f)),abs(mean_in_in(poor_abl_indices,f)))
+
+good_pval = signrank(abs(mean_out_out(good_abl_indices,f)),abs(mean_in_in(good_abl_indices,f)))
+poor_pval = signrank(abs(mean_out_out(poor_abl_indices,f)),abs(mean_in_in(poor_abl_indices,f)))
+end
+
+color1 = [0, 0.4470, 0.7410];
+color2 = [0.6350, 0.0780, 0.1840];
+color5 = [103 55 155]/255;
+color6 = [78 172 91]/255;
+
+figure(1);clf;
+hold on
+scatter(ones(size(abs(mean_in_in(good_abl_indices,f)))),abs(mean_in_in(good_abl_indices,f)),'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+plot([0.75 1.25],[nanmedian(abs(mean_in_in(good_abl_indices,f))) nanmedian(abs(mean_in_in(good_abl_indices,f)))],'k-','LineWidth',2)
+scatter(2*ones(size(abs(mean_in_in(poor_abl_indices,f)))),abs(mean_in_in(poor_abl_indices,f)),'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([1.75 2.25],[nanmedian(abs(mean_in_in(poor_abl_indices,f))) nanmedian(abs(mean_in_in(poor_abl_indices,f)))],'k-','LineWidth',2)
+scatter(3*ones(size(abs(mean_in_out(good_abl_indices,f)))),abs(mean_in_out(good_abl_indices,f)),'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+plot([2.75 3.25],[nanmedian(abs(mean_in_out(good_abl_indices,f))) nanmedian(abs(mean_in_out(good_abl_indices,f)))],'k-','LineWidth',2)
+scatter(4*ones(size(abs(mean_in_out(poor_abl_indices,f)))),abs(mean_in_out(poor_abl_indices,f)),'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([3.75 4.25],[nanmedian(abs(mean_in_out(poor_abl_indices,f))) nanmedian(abs(mean_in_out(poor_abl_indices,f)))],'k-','LineWidth',2)
+scatter(5*ones(size(abs(mean_out_out(good_abl_indices,f)))),abs(mean_out_out(good_abl_indices,f)),'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+plot([4.75 5.25],[nanmedian(abs(mean_out_out(good_abl_indices,f))) nanmedian(abs(mean_out_out(good_abl_indices,f)))],'k-','LineWidth',2)
+scatter(6*ones(size(abs(mean_out_out(poor_abl_indices,f)))),abs(mean_out_out(poor_abl_indices,f)),'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([5.75 6.25],[nanmedian(abs(mean_out_out(poor_abl_indices,f))) nanmedian(abs(mean_out_out(poor_abl_indices,f)))],'k-','LineWidth',2)
+
+% scatter(ones(size((mean_in_in(good_abl_indices,f)))),(mean_in_in(good_abl_indices,f)),'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+% plot([0.75 1.25],[nanmedian((mean_in_in(good_abl_indices,f))) nanmedian((mean_in_in(good_abl_indices,f)))],'k-','LineWidth',2)
+% scatter(2*ones(size((mean_in_in(poor_abl_indices,f)))),(mean_in_in(poor_abl_indices,f)),'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+% plot([1.75 2.25],[nanmedian((mean_in_in(poor_abl_indices,f))) nanmedian((mean_in_in(poor_abl_indices,f)))],'k-','LineWidth',2)
+% scatter(3*ones(size((mean_in_out(good_abl_indices,f)))),(mean_in_out(good_abl_indices,f)),'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+% plot([2.75 3.25],[nanmedian((mean_in_out(good_abl_indices,f))) nanmedian((mean_in_out(good_abl_indices,f)))],'k-','LineWidth',2)
+% scatter(4*ones(size((mean_in_out(poor_abl_indices,f)))),(mean_in_out(poor_abl_indices,f)),'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+% plot([3.75 4.25],[nanmedian((mean_in_out(poor_abl_indices,f))) nanmedian((mean_in_out(poor_abl_indices,f)))],'k-','LineWidth',2)
+% scatter(5*ones(size((mean_out_out(good_abl_indices,f)))),(mean_out_out(good_abl_indices,f)),'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+% plot([4.75 5.25],[nanmedian((mean_out_out(good_abl_indices,f))) nanmedian((mean_out_out(good_abl_indices,f)))],'k-','LineWidth',2)
+% scatter(6*ones(size((mean_out_out(poor_abl_indices,f)))),(mean_out_out(poor_abl_indices,f)),'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+% plot([5.75 6.25],[nanmedian((mean_out_out(poor_abl_indices,f))) nanmedian((mean_out_out(poor_abl_indices,f)))],'k-','LineWidth',2)
+
+xticks([1.5:2:5.5])
+xticklabels({'In-In','IN-Out','Out-Out'})
+%legend('Good outcome','','Poor outcome')
+ylabel('Mean absolute Z score')
+xlim([0.5, 6.5])
+
+%% localization (frontal vs temporal vs limbic)
+% intra-F, intra - T, intra - limbic
+
+
 %% get basic atlas info
 test_band = 3;
 

@@ -1,6 +1,6 @@
 function [all_patients, all_inds, all_locs, conn_field, var_field, coords_field, ...
     hasData_field, hasVar_field, id_field, implant_field, outcome_field, resect_field, ...
-    roi_field, target_field, therapy_field, region_list, region_names, ...
+    roi_field, target_field, therapy_field, ...
     lesion_field, sz_field] = set_up_workspace(iEEG_atlas_path)
 
 addpath(genpath(iEEG_atlas_path))
@@ -11,14 +11,18 @@ warning('OFF', 'MATLAB:table:ModifiedAndSavedVarnames')
 % load in data from excel spreadsheet
 metadata = readtable("data/atlas_project_metadata.xlsx");
 
+% get metadata
+whether_res = strcmp(metadata{:,5},'x');
+whether_conn = strcmp(metadata{:,6},'x');
+whether_seg = strcmp(metadata{:,8},'x');
+
+patients_to_use = whether_res.*whether_conn.*whether_seg;
+
+metadata =  metadata(find(patients_to_use),:);
+
+
 % enable warnings
 warning ('on','all')
-
-good_outcome_pts = {'HUP082','HUP086','HUP088','HUP094','HUP105','HUP106','HUP111','HUP116','HUP117',...
-                    'HUP125','HUP130','HUP139','HUP140','HUP150','HUP151','HUP157','HUP163','HUP164',...
-                    'HUP165','HUP173','HUP177','HUP179','HUP180','HUP181','HUP185'};
-
-poor_outcome_pts = {'HUP060','HUP075','HUP078','HUP112','HUP133','HUP138','HUP141','HUP158','HUP170','HUP171','HUP172','HUP188'};
 
 % place patients in a struct, extracting all relevant metadata
 all_patients = struct('patientID',metadata.Patient, ...
@@ -48,6 +52,7 @@ conn_field = {all_patients.conn};
 var_field = {all_patients.var};
 coords_field = {all_patients.coords};
 roi_field = {all_patients.coords};
+%roi_list = {all_patients.coords};
 resect_field = {all_patients.resect};
 outcome_field = {all_patients.outcome};
 hasData_field = {all_patients.hasData};
@@ -66,10 +71,12 @@ for k = 1:length(metadata.Patient)
     folderpath = sprintf('data/%s',id_field{k});
     datapath = sprintf('%s/patient_data.mat',folderpath);
     if isfile(datapath)
-        fprintf('%s: ',datapath)
+        fprintf('%s:',datapath)
         d = load(datapath);
         conn_field{k} = d.II_conn;
-        try var_field{k} = d.II_std;
+        roi_list_field{k} = d.roi_list;
+        coords_field{k} = d.T1_coords;
+        try var_field{k} = d.II_var;
             hasVar_field(k) = 1;
         catch ME
             var_field{k} = [];
@@ -83,24 +90,25 @@ for k = 1:length(metadata.Patient)
         else
             hasData_field{k} = true;
         end
-        coords_field{k} = d.mni_coords;
+        %coords_field{k} = d.mni_coords;
         
         try
             resect_field{k} = d.res_elec_inds;
         catch Error
             resect_field{k} = [];
         end
+        fprintf('loaded\n')
         % convert all electrode coordinates to region names
-        try
-            [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
-            roi_field{k} = electrode_regions;
-            fprintf('loaded\n')
-        catch ME
-            fprintf('failed to load\n')
-            warning('Problem converting MNI coordinates to region labels\n(%s)',datapath, ME.identifier)
-            hasData_field{k} = false;
-            if move_files, movefile(folderpath,'data/exclude/out_of_bound_electrodes'); end
-        end
+%         try
+%             [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
+%             roi_field{k} = electrode_regions;
+%             fprintf('loaded\n')
+%         catch ME
+%             fprintf('failed to load\n')
+%             warning('Problem converting MNI coordinates to region labels\n(%s)',datapath, ME.identifier)
+%             hasData_field{k} = false;
+%             if move_files, movefile(folderpath,'data/exclude/out_of_bound_electrodes'); end
+%         end
     else
         hasData_field{k} = false;
     end
@@ -111,22 +119,23 @@ end
 [all_patients.var] = var_field{:};
 [all_patients.coords] = coords_field{:};
 [all_patients.roi] = roi_field{:};
+[all_patients.roi_list] = roi_list_field{:};
 [all_patients.resect] = resect_field{:};
 [all_patients.hasData] = hasData_field{:};
 [all_patients.lesion_status] = lesion_field{:};
 
-fprintf('\nAll patient data loaded.')
+fprintf('\n All patient data loaded. \n')
 
 % load in region numbers
-region_list = zeros(1,90); % for the 90 AAL regions we will be using
-region_names = cell(1,90);
-fi = fopen("localization/AAL116_WM.txt");
-for j = 1:90
-    label = split(fgetl(fi));
-    region_list(j) = str2double(label{3});
-    region_names{j} = label{2};
-end
-
-fprintf('\nRegion list loaded.\n')
+% region_list = zeros(1,90); % for the 90 AAL regions we will be using
+% region_names = cell(1,90);
+% fi = fopen("localization/AAL116_WM.txt");
+% for j = 1:90
+%     label = split(fgetl(fi));
+%     region_list(j) = str2double(label{3});
+%     region_names{j} = label{2};
+% end
+% 
+% fprintf('\nRegion list loaded.\n')
 
 end
