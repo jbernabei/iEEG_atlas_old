@@ -21,12 +21,9 @@ test_band = 3;
 
 test_threshold = 5;
 good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
-good_patient_indices_var = find((hasVar_field) & strcmp({all_patients.outcome},'good'));
 
 cv_patients = all_patients(good_patient_indices);
-cv_patients_var = all_patients(good_patient_indices_var);
 [median_conn, std_conn, num_samples, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
-[median_var, std_var, num_samples_var, sem_var] = create_atlas({cv_patients_var.var}, {cv_patients_var.roi}, {cv_patients_var.resect}, region_list, test_band, test_threshold);
 
 num_samples(num_samples==0) = NaN;
 median_connectivity(num_samples==0) = NaN;
@@ -35,55 +32,15 @@ median_connectivity(num_samples==0) = NaN;
 lobe_table = readtable('lobes_aal.xlsx')
 
 figure(1);clf;
-subplot(1,3,2)
+subplot(1,2,2)
 imagesc(median_conn)
 title('median connectivity')
 colormap(color_bar)
 colorbar
-subplot(1,3,1)
+subplot(1,2,1)
 imagesc(num_samples)
 title('number of samples')
 colorbar
-subplot(1,3,3)
-imagesc(median_var)
-title('median var')
-colormap(color_bar)
-colorbar
-
-var_nan = isnan(median_var);
-conn_nan = isnan(median_conn);
-samples_nan = (num_samples<7);
-final_nan = (var_nan+conn_nan+samples_nan);
-not_nan = find(final_nan==0);
-
-[c1, p1] = corr(median_var(not_nan),median_conn(not_nan))
-[c2, p2] = corr(median_var(not_nan),num_samples(not_nan))
-[c3, p3] = corr(median_conn(not_nan),num_samples(not_nan))
-[c4, p4] = corr(num_samples(not_nan),std_conn(not_nan))
-
-figure(2);clf;
-subplot(1,3,1)
-plot(median_var(not_nan),median_conn(not_nan),'ko')
-subplot(1,3,2)
-plot(num_samples(not_nan),median_var(not_nan),'ko')
-subplot(1,3,3)
-plot(num_samples(not_nan),median_conn(not_nan),'ko')
-
-figure(3);clf;
-subplot(1,3,1)
-plot(median_conn(not_nan),std_conn(not_nan),'ko')
-subplot(1,3,2)
-plot(num_samples(not_nan),std_conn(not_nan),'ko')
-subplot(1,3,3)
-plot(num_samples(not_nan),std_var(not_nan),'ko')
-
-figure(4);clf;
-scatter(median_var(not_nan),std_conn(not_nan),num_samples(not_nan),num_samples(not_nan),'filled')
-colormap jet
-colorbar
-xlabel('Mean within-patient variance')
-ylabel('Stdev in avg connectivity')
-
 
 
 
