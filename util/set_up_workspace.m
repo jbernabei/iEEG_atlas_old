@@ -69,7 +69,7 @@ for k = 1:length(metadata.Patient)
         fprintf('%s: ',datapath)
         d = load(datapath);
         conn_field{k} = d.II_conn;
-        try var_field{k} = d.II_std;
+        try var_field{k} = d.II_var;
             hasVar_field(k) = 1;
         catch ME
             var_field{k} = [];

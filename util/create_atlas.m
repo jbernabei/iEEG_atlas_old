@@ -87,7 +87,7 @@ for p = 1:num_patients
         
         % calculate connections within the region
         patient_strengths = first_reg_strengths(:,first_reg_elec);
-        patient_strength = nanmedian(patient_strengths(triu(true(size(patient_strengths)),1)));%nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
+        patient_strength = nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));%nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
         
         % add to output array if the region contains any electrodes
         if ~isnan(patient_strength)
@@ -107,7 +107,7 @@ for p = 1:num_patients
             patient_strengths = first_reg_strengths(:,second_reg_elec);
             
             % average connection strengths between the two regions
-            patient_strength = nanmedian(patient_strengths(:));
+            patient_strength = nanmean(patient_strengths(:));
             
             % add to output array
             median_conn(i,j,p) = patient_strength;
@@ -126,7 +126,7 @@ sem_conn = std_conn./sqrt(num_samples);
 sem_conn(isinf(sem_conn)) = NaN;
 
 % divide out the number of patients element-wise to get the median matrix
-median_conn = median(median_conn,3,'omitnan');
+median_conn = mean(median_conn,3,'omitnan');
 
 % remove edge values and standard deviations for edges with sample sizes
 % less than the threshold

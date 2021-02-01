@@ -17,40 +17,172 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
 load color_bar
 load color_bar_alt
 %% get basic atlas info
-test_band = 3;
+test_band = 1;
 
 test_threshold = 5;
-good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
+data_patient_indices = find([all_patients.hasData]);
 
-cv_patients = all_patients(good_patient_indices);
-[median_conn, std_conn, num_samples, sem_conn] = create_atlas({cv_patients.conn}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
+atlas_patients = all_patients(data_patient_indices);
+[mean_conn, std_conn, num_samples, sem_conn] = create_atlas({atlas_patients.conn}, {atlas_patients.roi}, {atlas_patients.resect}, region_list, test_band, test_threshold);
+%[mean_var, std_var, num_samples, sem_var] = create_atlas({cv_patients.var}, {cv_patients.roi}, {cv_patients.resect}, region_list, test_band, test_threshold);
 
 num_samples(num_samples==0) = NaN;
-median_connectivity(num_samples==0) = NaN;
-
-% find which roi belong to which lobes 
-lobe_table = readtable('lobes_aal.xlsx')
+mean_connectivity(num_samples==0) = NaN;
 
 figure(1);clf;
-subplot(1,2,2)
-imagesc(median_conn)
-title('median connectivity')
-colormap(color_bar)
-colorbar
-subplot(1,2,1)
+subplot(1,3,1)
 imagesc(num_samples)
 title('number of samples')
 colorbar
+subplot(1,3,2)
+imagesc(mean_conn)
+title('mean connectivity')
+colormap(color_bar)
+colorbar
+subplot(1,3,3)
+imagesc(std_conn)
+title('std connectivity')
+colormap(color_bar)
+colorbar
+
+nanmedian(std_conn(:))
+
+%% do distance regression -> check each frequency band and each roi separately 
+good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good') & ~strcmp({all_patients.patientID},'HUP111')& ~strcmp({all_patients.patientID},'HUP117'));
+
+% do distance regression in good outcome patients -> non resected (at first)
+% need to make distance matrix
+for s = 1:length(good_patient_indices)
+    dist_mat = [];
+    this_pt = good_patient_indices(s);
+    coord_mat = all_patients(this_pt).coords;
+    num_coords = size(coord_mat,1);
+    for e1 = 1:num_coords
+        for e2 = 1:num_coords
+            dist_mat(e1,e2) = sqrt(sum((coord_mat(e1,:) - coord_mat(e2,:)).^2));
+        end
+    end
+     all_patients(this_pt).dist_mat = dist_mat;
+end
 
 
+%% do same regression in left and right
+for r = 1:45
+    
+    % loop through frequency bands and make the base structure 
+    intra_roi_conn(r).dist = [];
+    for f = 1:5
+        intra_roi_conn(r).freq(f).data = [];    
+    end
+    
+    for s = 1:length(good_patient_indices)
+        this_pt = good_patient_indices(s);
+        this_pt_roi = all_patients(this_pt).roi;
+        
+        % get right and left region numerical codes
+        left_region = find(this_pt_roi==all_inds(2*r));
+        right_region = find(this_pt_roi==all_inds(2*r-1));
+        
+        if length(left_region)>1
+
+            dist_matrix = triu(all_patients(this_pt).dist_mat);
+            this_roi_dist = dist_matrix(left_region,left_region);
+            dist_vec = this_roi_dist(:);
+            intra_roi_conn(r).dist = [intra_roi_conn(r).dist;dist_vec];
+            intra_roi_conn(r).dist(intra_roi_conn(r).dist==0) = [];
+
+            fprintf('more than 1 node on left\n')
+            for f = 1:5
+                triu_matrix = triu(all_patients(this_pt).conn(f).data);
+
+                this_roi_conn = triu_matrix(left_region,left_region);
+
+                roi_conn_vec = this_roi_conn(:);
+
+                intra_roi_conn(r).freq(f).data = [intra_roi_conn(r).freq(f).data;roi_conn_vec];
+                intra_roi_conn(r).freq(f).data(intra_roi_conn(r).freq(f).data==0) = [];
+
+
+            end
+        end      
+
+        if length(right_region)>1
+            fprintf('more than 1 node on right\n')
+
+            dist_matrix = triu(all_patients(this_pt).dist_mat);
+            this_roi_dist = dist_matrix(right_region,right_region);
+            dist_vec = this_roi_dist(:);
+            intra_roi_conn(r).dist = [intra_roi_conn(r).dist;dist_vec];
+            intra_roi_conn(r).dist(intra_roi_conn(r).dist==0) = [];
+
+            for f = 1:5
+                triu_matrix = triu(all_patients(this_pt).conn(f).data);
+
+                this_roi_conn = triu_matrix(right_region,right_region);
+
+                roi_conn_vec = this_roi_conn(:);
+
+                intra_roi_conn(r).freq(f).data = [intra_roi_conn(r).freq(f).data;roi_conn_vec];
+                intra_roi_conn(r).freq(f).data(intra_roi_conn(r).freq(f).data==0) = [];
+
+
+            end
+        end
+        
+    end
+end
+%%
+figure(1);clf;
+for f = 1:5
+    all_conn = [];
+    all_dist = [];
+for r = [1:45]
+    if length(intra_roi_conn(r).freq(f).data)~=length(intra_roi_conn(r).dist)
+    else
+    all_conn = [all_conn;intra_roi_conn(r).freq(f).data];
+    all_dist = [all_dist;intra_roi_conn(r).dist];
+    end
+end
+    mdl=fit(all_dist,all_conn,'rat11');
+    
+    xvals = linspace(min(all_dist),max(all_dist),100);
+    ypred = (mdl.p1.*xvals+mdl.p2)./(xvals+mdl.q1);
+    figure(1)
+    subplot(1,5,f)
+    hold on
+    plot(all_dist,all_conn,'ko')
+    plot(xvals,ypred,'r-','LineWidth',2)
+    hold off
+    
+    intra_roi_curve(f).mdl = mdl;
+    
+    if f==2
+        figure(2);clf;
+        subplot(1,2,1)
+        ypred = (mdl.p1.*all_dist+mdl.p2)./(all_dist+mdl.q1);
+        residuals = all_conn-ypred;
+        plot(all_dist,residuals,'ko')
+        
+        for j = 1:8
+            upper_bound = 10*j;
+            lower_bound = 10*(j-1)+1;
+            which_inds = find([all_dist>lower_bound].*[all_dist<upper_bound]);
+            std_val(j) = std(abs(residuals(which_inds))) 
+            
+        end
+        std_val(7) = [];
+        subplot(1,2,2)
+        plot(std_val,'ko')
+        std_mdl = fitlm([5:10:55,75],std_val)
+    end
+end
 
 
 %% find z scores
 
 test_threshold = 5; % main results for = 7
 
-good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good'));
-%good_patient_indices = find((hasVar_field) & strcmp({all_patients.outcome},'good'));
+good_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'good') & ~strcmp({all_patients.patientID},'HUP111')& ~strcmp({all_patients.patientID},'HUP117'));
 poor_patient_indices = find([all_patients.hasData] & strcmp({all_patients.outcome},'poor'));
 
 for atlas_method = ["patient","not edge"]
@@ -73,9 +205,10 @@ for atlas_method = ["patient","not edge"]
 
             line_length = fprintf('Testing %s...', test_patient.patientID);
 
-            [out_out_scores ,in_in_scores, in_out_scores, all_scores] =...
+            [out_out_scores ,in_in_scores, in_out_scores, all_scores, corr_val] =...
                 get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method,'conn');
-
+                
+            all_corr_vals(s,test_band) = corr_val;
 %             [out_out_scores_var ,in_in_scores_var, in_out_scores_var, all_scores_var] =...
 %                 get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method,'var');
 
@@ -133,9 +266,11 @@ for atlas_method = ["patient","not edge"]
 
             line_length = fprintf('Testing %s...', test_patient.patientID);
 
-            [out_out_scores, in_in_scores, in_out_scores ,all_scores] = ...
+            [out_out_scores, in_in_scores, in_out_scores ,all_scores, corr_val] = ...
                 get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method,'conn');
 
+            all_corr_vals(s+length(good_patient_indices),test_band) = corr_val;
+            
             % get all good outcome patient zscores
             poor_patient_zscores(test_band).freq{s} = abs(all_scores);
             poor_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
@@ -163,110 +298,7 @@ for atlas_method = ["patient","not edge"]
     end
 end
 
-%% find  VAR z scores
 
-test_threshold = 7; % main results for = 7
-
-good_patient_indices_var = find(hasVar_field & strcmp({all_patients.outcome},'good'));
-poor_patient_indices_var = find(hasVar_field & strcmp({all_patients.outcome},'poor'));
-
-for atlas_method = ["patient","not edge"]
-    for test_band = 1:5
-        % cross-validation of good-outcome patients
-        for s = 1:length(good_patient_indices_var)
-            test_patient = all_patients(good_patient_indices_var(s));
-            cv_patients = all_patients(good_patient_indices_var);
-            cv_patients(s) = [];
-            
-            if strcmp(test_patient.therapy,'Resection')
-               target_good(s) = 1;
-            elseif strcmp(test_patient.therapy,'Ablation')
-                target_good(s) = 2;
-            else
-                target_good(s) = 0;
-            end
-            
-            patient_id = test_patient.patientID;
-
-            line_length = fprintf('Testing %s...', test_patient.patientID);
-
-            [out_out_scores ,in_in_scores, in_out_scores, all_scores] =...
-                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method);
-
-            % get all good outcome patient zscores
-            good_patient_zscores(test_band).freq{s} = abs(all_scores);
-            good_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
-            
-            good_outcome_out_out(s,test_band) = nanmedian(nanmedian((out_out_scores)));
-            good_outcome_in_out(s,test_band) = nanmedian(nanmedian((in_out_scores)));
-            good_outcome_in_in(s,test_band) = nanmedian(nanmedian((in_in_scores)));
-            
-            good_outcome_out_out_2(s,test_band) = nanvar(out_out_scores(:));
-            good_outcome_in_out_2(s,test_band) = nanvar(in_out_scores(:));
-            good_outcome_in_in_2(s,test_band) = nanvar(in_in_scores(:));
-            
-            good_outcome_all_var(s,test_band) = nanvar(all_scores(:));
-            
-            % place results into all_patients
-            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.all = all_scores;
-            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.out_out = out_out_scores;
-            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.in_in = in_in_scores;
-            all_var_patients(good_patient_indices_var(s)).z_scores(test_band).data.in_out = in_out_scores;
-
-            if strcmp(test_patient.therapy,'Ablation')
-                [threshold_results(s,test_band),threshold_accuracies(s,test_band)] =...
-                    get_optimal_threshold(out_out_scores,in_in_scores);
-            end
-
-            fprintf(repmat('\b',1,line_length))
-
-        end
-        
-        cv_patients = all_patients(good_patient_indices_var);
-
-        % cross-validation of poor-outcome patients
-        for s = 1:length(poor_patient_indices_var)
-            test_patient = all_patients(poor_patient_indices_var(s));
-            
-            if strcmp(test_patient.therapy,'Resection') 
-               target_poor(s) = 1;
-            elseif strcmp(test_patient.therapy,'Ablation') 
-                target_poor(s) = 2;
-            else
-                target_poor(s) = 0;
-            end
-
-            line_length = fprintf('Testing %s...', test_patient.patientID);
-
-            [out_out_scores, in_in_scores, in_out_scores ,all_scores] = ...
-                get_new_patient_scores(test_patient,cv_patients,region_list,test_band,test_threshold,"std",atlas_method);
-
-            % get all good outcome patient zscores
-            poor_patient_zscores(test_band).freq{s} = abs(all_scores);
-            poor_patient_spared_zscores(test_band).freq{s} = abs(out_out_scores);
-            
-            poor_outcome_out_out(s,test_band) = nanmedian(nanmedian((out_out_scores)));
-            poor_outcome_in_out(s,test_band) = nanmedian(nanmedian((in_out_scores)));
-            poor_outcome_in_in(s,test_band) = nanmedian(nanmedian((in_in_scores)));
-            
-            poor_outcome_out_out_2(s,test_band) = nanvar(out_out_scores(:));
-            poor_outcome_in_out_2(s,test_band) = nanvar(in_out_scores(:));
-            poor_outcome_in_in_2(s,test_band) = nanvar(in_in_scores(:));
-            
-            poor_outcome_all_var(s,test_band) = nanvar(all_scores(:));
-            
-            % place results into all_patients
-            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.all = all_scores;
-            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.out_out = out_out_scores;
-            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.in_in = in_in_scores;
-            all_var_patients(poor_patient_indices_var(s)).z_scores(test_band).data.in_out = in_out_scores;
-
-            fprintf(repmat('\b',1,line_length))
-
-        end
-        
-    end
-end
 
 %% set up indices
 %ablation / resection
@@ -295,10 +327,9 @@ abs_poor_outcome_in_in = abs(poor_outcome_in_in);
 abs_poor_outcome_in_out = abs(poor_outcome_in_out);
 abs_poor_outcome_out_out = abs(poor_outcome_out_out);
 
-for f = 1
+for f = 3
    figure(f);clf;
-   
-   subplot(1,2,1)
+
    plot_data = abs([[good_outcome_in_in(:,f),[poor_outcome_in_in(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]],...
        [good_outcome_in_out(:,f),[poor_outcome_in_out(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]],...
        [good_outcome_out_out(:,f),[poor_outcome_out_out(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]]])
@@ -314,16 +345,7 @@ for f = 1
     
     legend('Poor outcome','Good outcome')
     
-    subplot(1,2,2)
-   plot_data = [[good_outcome_all_var(:,f),[poor_outcome_all_var(:,f);NaN*(ones(size(good_outcome_in_in,1)-size(poor_outcome_in_in,1),1))]]]
-
-    boxplot(plot_data)
-    
-    h = findobj(gca,'Tag','Box');
-   colors = [color2; color1; color2; color1; color2; color1];
-    for j=1:length(h)
-        patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
-    end
+  
    
    in_in_p_vals(f) = ranksum(abs_good_outcome_in_in(:,f),abs_poor_outcome_in_in(:,f));
    in_out_p_vals(f) = ranksum(abs_good_outcome_in_out(:,f),abs_poor_outcome_in_out(:,f));
