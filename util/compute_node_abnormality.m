@@ -17,7 +17,7 @@ function [node_abnormality, percent_abnormal] = compute_node_abnormality(atlas_z
         
         abn_node = find(node_scores>node_threshold);
         
-        node_abnormality{pt} = abn_node;
+        node_abnormality{pt} = node_scores;
         
         percent_abnormal(pt) = length(abn_node)./num_nodes;
     end

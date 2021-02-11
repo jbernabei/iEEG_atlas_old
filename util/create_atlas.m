@@ -111,6 +111,10 @@ for p = 1:num_patients
             
             % add to output array
             median_conn(i,j,p) = patient_strength;
+            
+            if i==j
+               median_conn(i,j,p) = NaN;
+            end
         end
     end
 end

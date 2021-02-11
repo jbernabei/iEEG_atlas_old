@@ -1,4 +1,4 @@
-function [native_adj_scores, corr_val] = test_native_adj(all_patient_conn, pt_mni, patient_roi, atlas_conn, atlas_var, all_inds, test_band)
+function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all_patient_conn, pt_mni, patient_roi, atlas_conn, atlas_var, all_inds, test_band)
     
     patient_conn = all_patient_conn(test_band).data;
 
@@ -39,6 +39,8 @@ function [native_adj_scores, corr_val] = test_native_adj(all_patient_conn, pt_mn
                 atlas_col = find(all_inds==region2);
 
                 atlas_edge_val = atlas_conn(atlas_row, atlas_col);
+                
+                atlas_var = 0.73.*atlas_edge_val-0.146;
 
                 new_score = (patient_conn(i,j)-atlas_edge_val)./atlas_var;
 
@@ -53,7 +55,33 @@ function [native_adj_scores, corr_val] = test_native_adj(all_patient_conn, pt_mn
         end
     end
     
+    % find predictions which are not NaN
     non_nan_preds = find(~isnan(pred_mat));
-    corr_val = corr(patient_conn(non_nan_preds),pred_mat(non_nan_preds));
-
+    
+    % set up real vectors of real connectivity and predicted connectivity
+    real_conn = patient_conn(non_nan_preds);
+    pred_conn = pred_mat(non_nan_preds);
+    
+    
+    
+    % get a global correlation
+    corr_val = corr(real_conn, pred_conn);
+    
+    % get number of edges
+    num_real_edges = length(real_conn);
+    
+    % loop through edges and do 'virtual edge resection'
+    for e = 1:num_real_edges
+        real_conn_res = real_conn;
+        real_conn_res(e) = [];
+        
+        pred_conn_res = pred_conn;
+        pred_conn_res(e) = [];
+        
+        % see whether correlation goes up (abnormal) or down (normal)
+        virtual_resect_edge(e) = (corr(real_conn_res, pred_conn_res)-corr_val)./corr_val;
+    end
+    
+    virtual_resect_mat = NaN*zeros(num_elecs);
+    virtual_resect_mat(non_nan_preds) = virtual_resect_edge;
 end
