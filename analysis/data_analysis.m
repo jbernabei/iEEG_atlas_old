@@ -1,26 +1,30 @@
-% john analysis
-
 %% set up workspace
-
 clear all
-
-band_names = {'broadband','alpha-theta','beta','low-gamma','high-gamma'};
 
 base_path = '/Users/jbernabei/Documents/PhD_Research/ecog_seeg/ecog_vs_seeg';
 iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas';
+metadata = readtable("data/atlas_project_metadata.xlsx");
 
-[all_patients, all_inds, all_locs, conn_field, var_field, coords_field, hasData_field, hasVar_field, id_field,...
-    implant_field, outcome_field, resect_field, roi_field, target_field,...
-    therapy_field, region_list, region_name, lesion_field,...
-    sz_field] = set_up_workspace(iEEG_atlas_path);
+[all_patients, all_inds, all_locs, coords_field, hasData_field, hasVar_field, id_field,...
+    implant_field, outcome_field, target_field,...
+    therapy_field, region_list, region_name, lesion_field] = set_up_workspace(iEEG_atlas_path);
 
-load color_bar
-load color_bar_alt
+% need to modify so we remove any un-used patients.
+remove_patients = ~[all_patients.hasData];
 
-% identify 3 categories:
-% 1) durable good outcome
-% 2) relapse
-% 3) poor outcome
+all_patients(remove_patients) = [];
+
+load color_bar color_bar_alt
+
+%% get outcome data & modify based on current measures
+engel_scores = metadata{:,8:10}; % extracted 3 columns of engel scores (1.2 = 1B, 2.1 = 2A, etc)
+figure(1);clf;
+title('patient outcome scores')
+ylabel('patient number')
+imagesc(engel_scores,'AlphaData',~isnan(engel_scores))
+xticks([1:3])
+xticklabels({'6 month','12 month','24 month'})
+colorbar % will need to change color axis stuff here but otherwise its fine.
 
 %% remove WM from all structures
 data_patient_indices = find([all_patients.hasData] & hasVar_field & ~strcmp({all_patients.patientID},'HUP111')& ~strcmp({all_patients.patientID},'HUP117'));
