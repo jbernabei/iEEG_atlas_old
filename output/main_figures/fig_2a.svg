@@ -1,0 +1,868 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 24.3.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 782 293" style="enable-background:new 0 0 782 293;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:none;stroke:#262626;stroke-width:0.5;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st1{fill:#262626;}
+	.st2{font-family:'HelveticaNeue';}
+	.st3{font-size:10px;}
+	.st4{fill:#0072BD;}
+	.st5{fill:none;stroke:#0072BD;stroke-miterlimit:10;}
+	.st6{fill:none;stroke:#000000;stroke-width:2;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st7{fill:#A2142F;}
+	.st8{fill:none;stroke:#A2142F;stroke-miterlimit:10;}
+	.st9{fill:none;stroke:#000000;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st10{fill:none;stroke:#000000;stroke-miterlimit:10;}
+</style>
+<g>
+	<line class="st0" x1="101.5" y1="261" x2="707.5" y2="261"/>
+	<line class="st0" x1="101.5" y1="261" x2="101.5" y2="254.9"/>
+	<line class="st0" x1="188.1" y1="261" x2="188.1" y2="254.9"/>
+	<line class="st0" x1="274.6" y1="261" x2="274.6" y2="254.9"/>
+	<line class="st0" x1="361.2" y1="261" x2="361.2" y2="254.9"/>
+	<line class="st0" x1="447.8" y1="261" x2="447.8" y2="254.9"/>
+	<line class="st0" x1="534.4" y1="261" x2="534.4" y2="254.9"/>
+	<line class="st0" x1="620.9" y1="261" x2="620.9" y2="254.9"/>
+	<line class="st0" x1="707.5" y1="261" x2="707.5" y2="254.9"/>
+</g>
+<g transform="translate(101.5,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">0</text>
+</g>
+<g transform="translate(188.0714,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">1</text>
+</g>
+<g transform="translate(274.6429,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">2</text>
+</g>
+<g transform="translate(361.2143,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">3</text>
+</g>
+<g transform="translate(447.7857,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">4</text>
+</g>
+<g transform="translate(534.3571,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">5</text>
+</g>
+<g transform="translate(620.9286,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">6</text>
+</g>
+<g transform="translate(707.5,265)">
+	<text transform="matrix(1 0 0 1 -3 10)" class="st1 st2 st3">7</text>
+</g>
+<g>
+	<line class="st0" x1="101.5" y1="261" x2="101.5" y2="22"/>
+	<line class="st0" x1="101.5" y1="261" x2="107.6" y2="261"/>
+	<line class="st0" x1="101.5" y1="226.9" x2="107.6" y2="226.9"/>
+	<line class="st0" x1="101.5" y1="192.7" x2="107.6" y2="192.7"/>
+	<line class="st0" x1="101.5" y1="158.6" x2="107.6" y2="158.6"/>
+	<line class="st0" x1="101.5" y1="124.4" x2="107.6" y2="124.4"/>
+	<line class="st0" x1="101.5" y1="90.3" x2="107.6" y2="90.3"/>
+	<line class="st0" x1="101.5" y1="56.1" x2="107.6" y2="56.1"/>
+	<line class="st0" x1="101.5" y1="22" x2="107.6" y2="22"/>
+</g>
+<g transform="translate(97.5,261)">
+	<text transform="matrix(1 0 0 1 -10 3.5)" class="st1 st2 st3">-2</text>
+</g>
+<g transform="translate(97.5,226.8571)">
+	<text transform="matrix(1 0 0 1 -6 3.5)" class="st1 st2 st3">0</text>
+</g>
+<g transform="translate(97.5,192.7143)">
+	<text transform="matrix(1 0 0 1 -6 3.5)" class="st1 st2 st3">2</text>
+</g>
+<g transform="translate(97.5,158.5714)">
+	<text transform="matrix(1 0 0 1 -6 3.5)" class="st1 st2 st3">4</text>
+</g>
+<g transform="translate(97.5,124.4286)">
+	<text transform="matrix(1 0 0 1 -6 3.5)" class="st1 st2 st3">6</text>
+</g>
+<g transform="translate(97.5,90.2857)">
+	<text transform="matrix(1 0 0 1 -6 3.5)" class="st1 st2 st3">8</text>
+</g>
+<g transform="translate(97.5,56.1429)">
+	<text transform="matrix(1 0 0 1 -12 3.5)" class="st1 st2 st3">10</text>
+</g>
+<g transform="translate(97.5,22)">
+	<text transform="matrix(1 0 0 1 -12 3.5)" class="st1 st2 st3">12</text>
+</g>
+<g transform="translate(178.7088,226.6455)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(178.7088,226.6455)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.1868,190.3167)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.1868,190.3167)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.333,228.0388)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.333,228.0388)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(180.0183,211.6833)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(180.0183,211.6833)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(182.4375,212.3468)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(182.4375,212.3468)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(173.7685,213.8255)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(173.7685,213.8255)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.394,152.8379)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.394,152.8379)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.5015,149.2071)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.5015,149.2071)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(171.7626,108.2495)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(171.7626,108.2495)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(192.8191,181.1013)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(192.8191,181.1013)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(172.8161,233.1984)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(172.8161,233.1984)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(176.6162,232.3602)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(176.6162,232.3602)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(194.4666,218.3844)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(194.4666,218.3844)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(189.961,116.803)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(189.961,116.803)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(170.9662,53.5549)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(170.9662,53.5549)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(180.7331,213.0675)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(180.7331,213.0675)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.7987,184.0892)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.7987,184.0892)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(173.3381,212.4091)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(173.3381,212.4091)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.712,201.2095)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.712,201.2095)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.5834,194.3092)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(183.5834,194.3092)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(199.3104,141.9111)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(199.3104,141.9111)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(189.3712,137.808)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(189.3712,137.808)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.6995,215.0779)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(186.6995,215.0779)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(171.2431,226.5173)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(171.2431,226.5173)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(170.9297,213.0441)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(170.9297,213.0441)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(176.5133,222.7322)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(176.5133,222.7322)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g>
+	<line class="st6" x1="166.4" y1="212" x2="209.7" y2="212"/>
+</g>
+<g transform="translate(266.507,209.4857)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(266.507,209.4857)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(288.3523,223.5362)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(288.3523,223.5362)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(278.3823,232.2976)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(278.3823,232.2976)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(257.8273,220.0837)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(257.8273,220.0837)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(269.2418,193.412)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(269.2418,193.412)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(275.8086,236.5706)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(275.8086,236.5706)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(279.0671,192.7602)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(279.0671,192.7602)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(272.7984,210.8771)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(272.7984,210.8771)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(285.416,207.1456)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(285.416,207.1456)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(262.3438,193.9105)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(262.3438,193.9105)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(291.0855,206.2173)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(291.0855,206.2173)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(286.2005,216.3582)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(286.2005,216.3582)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(269.1058,177.4401)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(269.1058,177.4401)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(278.6681,204.9272)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(278.6681,204.9272)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(267.8472,198.2619)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(267.8472,198.2619)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g>
+	<line class="st6" x1="253" y1="207.1" x2="296.3" y2="207.1"/>
+</g>
+<g transform="translate(359.0437,228.5792)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(359.0437,228.5792)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(365.1136,191.6796)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(365.1136,191.6796)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(369.438,231.0542)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(369.438,231.0542)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(354.4021,219.2527)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(354.4021,219.2527)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(345.3879,222.6682)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(345.3879,222.6682)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(372.8324,230.182)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(372.8324,230.182)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(356.6886,194.4673)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(356.6886,194.4673)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(366.8012,162.3135)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(366.8012,162.3135)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(374.9175,148.9335)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(374.9175,148.9335)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(353.3917,220.6227)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(353.3917,220.6227)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(378.4558,241.7477)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(378.4558,241.7477)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(372.7925,196.966)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(372.7925,196.966)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(371.3031,239.0742)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(371.3031,239.0742)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(366.6376,210.6634)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(366.6376,210.6634)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(362.7266,184.1918)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(362.7266,184.1918)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(357.2902,236.2759)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(357.2902,236.2759)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(372.3727,216.5988)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(372.3727,216.5988)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(370.9671,194.4143)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(370.9671,194.4143)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(378.1017,221.2291)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(378.1017,221.2291)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(371.1961,221.5554)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(371.1961,221.5554)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(373.4354,216.2333)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(373.4354,216.2333)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(360.7161,118.8321)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(360.7161,118.8321)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(374.1569,204.1667)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(374.1569,204.1667)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(355.4607,215.5248)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(355.4607,215.5248)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(351.0098,244.4002)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(351.0098,244.4002)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(361.0189,228.3537)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(361.0189,228.3537)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(344.9807,225.1315)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(344.9807,225.1315)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g>
+	<line class="st6" x1="339.6" y1="219.3" x2="382.9" y2="219.3"/>
+</g>
+<g transform="translate(459.5712,203.4406)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(459.5712,203.4406)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(452.1153,236.1539)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(452.1153,236.1539)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(439.3088,218.907)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(439.3088,218.907)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(461.7996,227.0513)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(461.7996,227.0513)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(457.042,208.4753)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(457.042,208.4753)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(449.9557,230.7356)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(449.9557,230.7356)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(461.5386,236.0292)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(461.5386,236.0292)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(443.2175,215.4232)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(443.2175,215.4232)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(442.1666,202.9509)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(442.1666,202.9509)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(451.9015,222.4834)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(451.9015,222.4834)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(433.4805,223.867)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(433.4805,223.867)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(443.4744,206.0754)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(443.4744,206.0754)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(436.9601,208.6015)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(436.9601,208.6015)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(458.5388,238.9429)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(458.5388,238.9429)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(455.5165,230.3036)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(455.5165,230.3036)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g>
+	<line class="st6" x1="426.1" y1="222.5" x2="469.4" y2="222.5"/>
+</g>
+<g transform="translate(528.4935,229.6293)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(528.4935,229.6293)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(548.6821,196.3326)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(548.6821,196.3326)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(537.0133,228.6527)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(537.0133,228.6527)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(527.0128,207.7527)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(527.0128,207.7527)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(526.284,216.1436)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(526.284,216.1436)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(547.8685,241.9916)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(547.8685,241.9916)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(529.7205,199.1687)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(529.7205,199.1687)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(522.2377,173.2551)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(522.2377,173.2551)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(549.8129,175.5095)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(549.8129,175.5095)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(539.5804,223.4277)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(539.5804,223.4277)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(551.0555,236.4277)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(551.0555,236.4277)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(523.7551,234.9409)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(523.7551,234.9409)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(545.741,239.8759)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(545.741,239.8759)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(534.1425,222.4289)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(534.1425,222.4289)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(537.5007,214.2778)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(537.5007,214.2778)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(518.5974,237.7096)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(518.5974,237.7096)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(536.5892,229.7152)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(536.5892,229.7152)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(538.9816,194.8516)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(538.9816,194.8516)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(534.2913,194.9465)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(534.2913,194.9465)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(519.1075,215.8304)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(519.1075,215.8304)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(534.8822,217.6354)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(534.8822,217.6354)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(518.8849,210.4884)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(518.8849,210.4884)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(546.2566,147.8088)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(546.2566,147.8088)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(537.6355,211.2823)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(537.6355,211.2823)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(540.9719,208.6551)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(540.9719,208.6551)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(539.4554,223.1567)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(539.4554,223.1567)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(538.6317,219.462)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(538.6317,219.462)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(550.0736,208.3502)">
+	<circle class="st4" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(550.0736,208.3502)">
+	<circle class="st5" cx="0" cy="0" r="3"/>
+</g>
+<g>
+	<line class="st6" x1="512.7" y1="216" x2="556" y2="216"/>
+</g>
+<g transform="translate(629.6032,199.8073)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(629.6032,199.8073)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(615.1776,218.3399)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(615.1776,218.3399)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(625.5284,212.0882)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(625.5284,212.0882)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(618.004,222.9522)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(618.004,222.9522)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(623.5776,217.0751)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(623.5776,217.0751)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(636.8404,221.8463)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(636.8404,221.8463)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(624.9402,228.8188)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(624.9402,228.8188)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(608.8286,219.8954)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(608.8286,219.8954)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(632.6424,197.9335)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(632.6424,197.9335)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(628.7603,219.7561)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(628.7603,219.7561)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(607.3835,220.7175)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(607.3835,220.7175)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(609.2017,202.3859)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(609.2017,202.3859)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(613.8994,144.9923)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(613.8994,144.9923)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(618.2823,235.399)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(618.2823,235.399)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(621.9125,235.5788)">
+	<circle class="st7" cx="0" cy="0" r="3"/>
+</g>
+<g transform="translate(621.9125,235.5788)">
+	<circle class="st8" cx="0" cy="0" r="3"/>
+</g>
+<g>
+	<line class="st6" x1="599.3" y1="219.8" x2="642.6" y2="219.8"/>
+	<line class="st9" x1="188.1" y1="39.1" x2="534.4" y2="39.1"/>
+	<path class="st10" d="M401.5,30.5l3,4l3-4l-3-4L401.5,30.5z"/>
+	<line class="st9" x1="361.2" y1="90.3" x2="534.4" y2="90.3"/>
+	<path class="st10" d="M444.8,81.8l3,4l3-4l-3-4L444.8,81.8z"/>
+	<line class="st9" x1="274.6" y1="64.7" x2="620.9" y2="64.7"/>
+	<path class="st10" d="M447.8,53.1v6 M444.8,56.1h6 M445.7,54l4.2,4.2 M445.7,58.3l4.2-4.2"/>
+</g>
+</svg>

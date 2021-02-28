@@ -11,11 +11,11 @@ function [node_abnormality, percent_abnormal] = compute_node_abnormality(atlas_z
         num_nodes = size(pt_zscore,1);
         
         % find abnormal edges
-        abn_edge = pt_zscore>edge_threshold;
+        abn_edge = abs(pt_zscore)>edge_threshold;
         
-        node_scores = mean(abn_edge,'omitnan');
+        node_scores = sum(abn_edge,'omitnan');
         
-        abn_node = find(node_scores>node_threshold);
+        abn_node = find(node_scores>1);
         
         node_abnormality{pt} = node_scores;
         

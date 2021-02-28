@@ -1,10 +1,13 @@
 function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all_patient_conn, pt_mni, patient_roi, atlas_conn, atlas_var, all_inds, test_band)
     
-    patient_conn = all_patient_conn(test_band).data;
+    try patient_conn = all_patient_conn(test_band).data;
+    catch any_error
+        patient_conn = all_patient_conn;
+    end
 
     num_elecs = size(patient_conn,1);
     
-    native_adj_scores = zeros(num_elecs);
+    native_adj_scores = NaN*zeros(num_elecs);
     
     pred_mat = zeros(num_elecs);
     
@@ -17,7 +20,10 @@ function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all
             
             if region1==region2
                 if i==j
+                    % same electrode, ignore
                 else
+                    % same region, only do intra-regional
+                    
                     % calculate inter-elec distance
                     elec1_coords = pt_mni(i,:);
                     elec2_coords = pt_mni(j,:);
@@ -40,7 +46,7 @@ function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all
 
                 atlas_edge_val = atlas_conn(atlas_row, atlas_col);
                 
-                atlas_var = 0.73.*atlas_edge_val-0.146;
+                atlas_var = 0.49.*atlas_edge_val-0.079;
 
                 new_score = (patient_conn(i,j)-atlas_edge_val)./atlas_var;
 
@@ -70,18 +76,18 @@ function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all
     % get number of edges
     num_real_edges = length(real_conn);
     
-    % loop through edges and do 'virtual edge resection'
-    for e = 1:num_real_edges
-        real_conn_res = real_conn;
-        real_conn_res(e) = [];
-        
-        pred_conn_res = pred_conn;
-        pred_conn_res(e) = [];
-        
-        % see whether correlation goes up (abnormal) or down (normal)
-        virtual_resect_edge(e) = (corr(real_conn_res, pred_conn_res)-corr_val)./corr_val;
-    end
+%     % loop through edges and do 'virtual edge resection'
+%     for e = 1:num_real_edges
+%         real_conn_res = real_conn;
+%         real_conn_res(e) = [];
+%         
+%         pred_conn_res = pred_conn;
+%         pred_conn_res(e) = [];
+%         
+%         % see whether correlation goes up (abnormal) or down (normal)
+%         virtual_resect_edge(e) = (corr(real_conn_res, pred_conn_res)-corr_val)./corr_val;
+%     end
     
     virtual_resect_mat = NaN*zeros(num_elecs);
-    virtual_resect_mat(non_nan_preds) = virtual_resect_edge;
+    %virtual_resect_mat(non_nan_preds) = virtual_resect_edge;
 end

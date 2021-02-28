@@ -1,4 +1,4 @@
-function [median_conn, std_conn, num_samples, sem_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold, silence_output)
+function [median_conn, std_conn, num_samples, sem_conn] = create_atlas(all_conn, all_roi, all_resect, region_list, band, threshold)
 % [mean_conn, std_conn] = create_atlas(all_conn, all_roi, all_resect, region_list)
 % takes in an array of conectivity structs, an array of 3D mni coordinate
 % arrays, an array of resected electrode vectors, and a vector containing
@@ -32,26 +32,14 @@ function [median_conn, std_conn, num_samples, sem_conn] = create_atlas(all_conn,
 
 % sets default threshold value if none is given
 if ~exist('threshold','var'), threshold = 1; end
-if ~exist('silence_output','var'), silence_output = true; end
 
 % get number of patients
 num_patients = length(all_conn);
 
-% get number of regions
-num_regions = length(region_list);
-
 % initialize output array to store connection strengths
 median_conn = NaN(90,90,num_patients);
 
-if ~silence_output, fprintf("Calculating connections  "); end
-
-% for aesthetics
-spinner = ['|','/','-','\'];
-
 for p = 1:num_patients
-    
-    % display spinner
-    if ~silence_output, fprintf("\b%c",spinner(floor(mod(p/8,4)+1))); end
     
     % get electrode regions for the patient
     patient_electrode_regions = all_roi{p};
@@ -85,18 +73,22 @@ for p = 1:num_patients
         % extract rows corresponding to electrodes in the first region
         first_reg_strengths = band_matrix(first_reg_elec,:);
         
-        % calculate connections within the region
-        patient_strengths = first_reg_strengths(:,first_reg_elec);
-        patient_strength = nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));%nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
-        
-        % add to output array if the region contains any electrodes
-        if ~isnan(patient_strength)
-            median_conn(i,i,p) = patient_strength;
-        else
-            % skip calculations for this region pair if the first region
-            % does not contain any electrodes
-            continue
-        end
+%         % calculate connections within the region
+%         patient_strengths = first_reg_strengths(:,first_reg_elec);
+%         same_elec_mask = eye(size(patient_strengths));
+%         patient_strengths(same_elec_mask==1) = NaN;
+%         patient_strength = nanmedian(patient_strengths);
+%         %nanmedian(patient_strengths(triu(true(size(patient_strengths)),1)));
+%         %nanmean(patient_strengths(triu(true(size(patient_strengths)),1)));
+%         
+%         % add to output array if the region contains any electrodes
+%         if ~isnan(patient_strength)
+%             median_conn(i,i,p) = patient_strength;
+%         else
+%             % skip calculations for this region pair if the first region
+%             % does not contain any electrodes
+%             continue
+%         end
 
         for j = 1:90 % second region (used to be (i+1):90)
             
@@ -107,7 +99,7 @@ for p = 1:num_patients
             patient_strengths = first_reg_strengths(:,second_reg_elec);
             
             % average connection strengths between the two regions
-            patient_strength = nanmean(patient_strengths(:));
+            patient_strength = nanmedian(patient_strengths(:));
             
             % add to output array
             median_conn(i,j,p) = patient_strength;
@@ -130,7 +122,7 @@ sem_conn = std_conn./sqrt(num_samples);
 sem_conn(isinf(sem_conn)) = NaN;
 
 % divide out the number of patients element-wise to get the median matrix
-median_conn = mean(median_conn,3,'omitnan');
+median_conn = median(median_conn,3,'omitnan');
 
 % remove edge values and standard deviations for edges with sample sizes
 % less than the threshold
@@ -144,7 +136,5 @@ sem_conn(num_samples < threshold) = NaN;
 % std_conn = symmetrize(std_conn);
 % sem_conn = symmetrize(sem_conn);
 % num_samples = symmetrize(num_samples);
-
-if ~silence_output, fprintf("\b\b... successfully generated atlas for band %d, threshold = %d.\n",band,threshold); end
 
 end
