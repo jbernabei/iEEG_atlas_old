@@ -1,4 +1,4 @@
-function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all_patient_conn, pt_mni, patient_roi, atlas_conn, atlas_var, all_inds, test_band)
+function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all_patient_conn, pt_mni, patient_roi, atlas_conn, atlas_std, all_inds, test_band, var_method)
     
     try patient_conn = all_patient_conn(test_band).data;
     catch any_error
@@ -46,7 +46,11 @@ function [native_adj_scores, corr_val, virtual_resect_mat] = test_native_adj(all
 
                 atlas_edge_val = atlas_conn(atlas_row, atlas_col);
                 
-                atlas_var = 0.49.*atlas_edge_val-0.079;
+                if var_method==1
+                    atlas_var = 0.49.*atlas_edge_val-0.079;
+                else
+                    atlas_var = atlas_std(atlas_row, atlas_col);
+                end
 
                 new_score = (patient_conn(i,j)-atlas_edge_val)./atlas_var;
 

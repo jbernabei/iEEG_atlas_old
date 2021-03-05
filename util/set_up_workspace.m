@@ -39,6 +39,7 @@ conn_field = {all_patients.conn};
 var_field = {all_patients.var};
 coords_field = {all_patients.coords};
 roi_field = {all_patients.coords};
+in_brain_field = {all_patients.coords};
 resect_field = {all_patients.resect};
 outcome_field = {all_patients.outcome};
 hasData_field = {all_patients.hasData};
@@ -86,6 +87,7 @@ for k = 1:length(metadata.Patient)
         try
             [~,electrode_regions,~] = nifti_values(coords_field{1,k},'localization/AAL116_WM.nii');
             roi_field{k} = electrode_regions;
+            in_brain_field{k} = d.in_brain;
             fprintf('loaded\n')
         catch ME
             fprintf('failed to load\n')
@@ -108,6 +110,7 @@ end
 [all_patients.lesion_status] = lesion_field{:};
 [all_patients.age_onset] = age_onset_field{:};
 [all_patients.age_surgery] = age_surgery_field{:};
+[all_patients.in_brain] = in_brain_field{:};
 
 fprintf('\nAll patient data loaded.')
 

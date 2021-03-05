@@ -68,6 +68,9 @@ for p = 1:num_patients
     for i = 1:90 % first region
         
         % get electrodes contained within first region
+        if isempty(resect_boolean)
+            p
+        end
         first_reg_elec = (patient_electrode_regions == region_list(i) & ~resect_boolean);
         
         % extract rows corresponding to electrodes in the first region

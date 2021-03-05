@@ -13,19 +13,24 @@ end
 corr_val = [];
 
 if strcmp(atlas_method,'atlas')
+%     if conn_type==1
+%         [pt_atlas, pt_std, ~, sem_conn] = create_atlas({test_patient.conn}, {test_patient.roi}, {[]}, region_list, test_band, 1);
+%     else
+%         [pt_atlas, pt_std, ~, sem_conn] = create_atlas({test_patient.var}, {test_patient.roi}, {[]}, region_list, test_band, 1);
+%     end
+%     % need to fix the resected electrodes
+%     [score_matrix, corr_val, virtual_resect] = test_native_adj(pt_atlas, test_patient.coords, region_list, mean_conn, nanmean(nanmean(sem_conn)), region_list, test_band);
+%     % need to do it without coordinates
     if conn_type==1
-        [pt_atlas, pt_std, ~, sem_conn] = create_atlas({test_patient.conn}, {test_patient.roi}, {[]}, region_list, test_band, 1);
+        [score_matrix, corr_val, virtual_resect] = test_native_adj(test_patient.conn, test_patient.coords, test_patient.roi, mean_conn, std_conn, region_list, test_band,2);
     else
-        [pt_atlas, pt_std, ~, sem_conn] = create_atlas({test_patient.var}, {test_patient.roi}, {[]}, region_list, test_band, 1);
+        [score_matrix, corr_val, virtual_resect] = test_native_adj(test_patient.var, test_patient.coords, test_patient.roi, mean_conn, nanmean(nanmean(std_conn)), region_list, test_band,2);
     end
-    % need to fix the resected electrodes
-    [score_matrix, corr_val, virtual_resect] = test_native_adj(pt_atlas, test_patient.coords, region_list, mean_conn, nanmean(nanmean(sem_conn)), region_list, test_band);
-    % need to do it without coordinates
 elseif strcmp(atlas_method,'native')
     if conn_type==1
-        [score_matrix, corr_val, virtual_resect] = test_native_adj(test_patient.conn, test_patient.coords, test_patient.roi, mean_conn, nanmean(nanmean(std_conn)), region_list, test_band);
+        [score_matrix, corr_val, virtual_resect] = test_native_adj(test_patient.conn, test_patient.coords, test_patient.roi, mean_conn, nanmean(nanmean(std_conn)), region_list, test_band,1);
     else
-        [score_matrix, corr_val, virtual_resect] = test_native_adj(test_patient.var, test_patient.coords, test_patient.roi, mean_conn, nanmean(nanmean(std_conn)), region_list, test_band);
+        [score_matrix, corr_val, virtual_resect] = test_native_adj(test_patient.var, test_patient.coords, test_patient.roi, mean_conn, nanmean(nanmean(std_conn)), region_list, test_band,1);
     end
 end
 

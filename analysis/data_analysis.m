@@ -1,7 +1,6 @@
 %% set up workspace
 clear all
 
-base_path = '/Users/jbernabei/Documents/PhD_Research/ecog_seeg/ecog_vs_seeg';
 iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas';
 metadata = readtable("data/atlas_project_metadata.xlsx");
 
@@ -11,7 +10,8 @@ all_engel_scores = metadata{:,8:10}; % extracted 3 columns of engel scores (1.2 
     implant_field, outcome_field, target_field,...
     therapy_field, region_list, region_name, lesion_field] = set_up_workspace(iEEG_atlas_path);
 
-all_patients_raw(40).hasData = 0; % adjust for HUP140 (no var, needs replacement)
+% Fix HUP140
+% Fix HUP172
 
 % extract outcome
 for s = 1:length(all_patients_raw)
@@ -33,6 +33,7 @@ age_onset(remove_patients) = [];
 age_surgery(remove_patients) = [];
 therapy_field(remove_patients) = [];
 lesion_field(remove_patients) = [];
+target_field(remove_patients) = [];
 
 all_engel_scores(remove_patients,:) = [];
 
@@ -44,7 +45,7 @@ load color_bar_alt
 all_patients = remove_all_wm(all_patients_raw);
 
 %% Do all patient localization renderings
-for s = 2:length(all_patients)
+for s = [15,17,18]
     this_pt = all_patients(s).patientID
     all_coords = all_patients(s).coords;
     % set up .node file
@@ -53,6 +54,22 @@ for s = 2:length(all_patients)
     BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/all_render.node','output/all_render.mat',sprintf('output/all_render/%s_all_node.jpg',this_pt))
 
 end
+
+%% Do rendering for all coordinates together
+all_coords = [];
+all_pt_ind = [];
+for s = 2:2:length(all_patients)
+    this_coords = all_patients(s).coords;
+    all_coords = [all_coords;this_coords];
+    all_pt_ind = [all_pt_ind;s*ones(size(this_coords,1),1)];
+end
+
+% all_coords = all_coords([1:3:end],:);
+% all_pt_ind = all_pt_ind([1:3:end])
+
+final_elec_matrix = [all_coords, all_pt_ind, ones(size(all_coords,1),1)];  
+dlmwrite('output/all_render.node',final_elec_matrix,'delimiter',' ','precision',5)
+BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/all_render.node','output/all_pt_render.mat','output/all_render/all_pt_node.jpg')
 
 %% get outcome data & modify based on current measures
 
@@ -141,7 +158,8 @@ num_relapse = [sum([early_outcome==1].*[late_outcome>1]),NaN];
 %% get basic atlas info
 test_band = 1;
 
-test_threshold = 3;
+for test_threshold = 1:10
+
 data_patient_indices = find([all_patients.hasData]);
 
 atlas_patients = all_patients(data_patient_indices);
@@ -151,29 +169,41 @@ atlas_patients = all_patients(data_patient_indices);
 num_samples(num_samples==0) = NaN;
 mean_connectivity(num_samples==0) = NaN;
 
-figure(1);clf;
-subplot(1,3,1)
-imagesc(num_samples)
-title('number of samples')
-colorbar
-subplot(1,3,2)
-imagesc(mean_conn,'AlphaData',~isnan(mean_conn))
-title('mean connectivity')
-colormap(color_bar)
-colorbar
-subplot(1,3,3)
-imagesc(std_conn,'AlphaData',~isnan(std_conn))
-title('std connectivity')
-colormap(color_bar)
-colorbar
+% figure(1);clf;
+% subplot(1,3,1)
+% imagesc(num_samples)
+% title('number of samples')
+% colorbar
+% subplot(1,3,2)
+% imagesc(mean_conn,'AlphaData',~isnan(mean_conn))
+% title('mean connectivity')
+% colormap(color_bar)
+% colorbar
+% subplot(1,3,3)
+% imagesc(std_conn,'AlphaData',~isnan(std_conn))
+% title('std connectivity')
+% colormap(color_bar)
+% colorbar
 
-nanmedian(std_conn(:))
-figure(2);clf;
+std_conn_all(test_threshold) =  nanmedian(std_conn(:))
+
+
+all_mean_conn = mean_conn(:);
+all_std_conn = std_conn(:);
+all_pt_count = num_samples(:);
+figure(test_threshold);clf;
 hold on
-plot(mean_conn(:),std_conn(:),'ko')
+for i = 1:5:length(all_mean_conn)
+    try plot(all_mean_conn(i),all_std_conn(i),'ko','MarkerSize',(all_pt_count(i)+1))
+    catch ME
+    end
+end
 xlabel('Median connectivity across patients')
 ylabel('Standard deviation of connectivity across patients')
 title('Atlas edge variability across patients')
+end
+% color by part of brain
+% size by how many patients have that connection
 
 figure(3);clf;
 subplot(1,2,1)
@@ -183,30 +213,157 @@ subplot(1,2,2)
 title('edges > 3 samples')
 imagesc(num_samples>3)
 
-inter_reg_std_mdl = fitlm(mean_conn(:),std_conn(:))
+%% do distance regression -> check each frequency band and each roi separately 
 
-figure(4);clf;
-subplot(1,3,1)
-imagesc(num_samples)
-title('number of samples')
-colorbar
-subplot(1,3,2)
-imagesc(mean_var,'AlphaData',~isnan(mean_var))
-title('mean connectivity')
-colormap(color_bar)
-colorbar
-subplot(1,3,3)
-imagesc(std_var,'AlphaData',~isnan(std_var))
-title('std connectivity')
-colormap(color_bar)
-colorbar
+% do distance regression in good outcome patients -> non resected (at first)
+% need to make distance matrix
+for s = 1:length(all_patients)
+    dist_mat = [];
+    this_pt = s;
+    coord_mat = all_patients(this_pt).coords;
+    num_coords = size(coord_mat,1);
+    for e1 = 1:num_coords
+        for e2 = 1:num_coords
+            dist_mat(e1,e2) = sqrt(sum((coord_mat(e1,:) - coord_mat(e2,:)).^2));
+        end
+    end
+     all_patients(this_pt).dist_mat = dist_mat;
+end
 
-figure(5);clf;
-hold on
-plot(mean_var(:),std_var(:),'ko')
-xlabel('Median variance across patients')
-ylabel('Standard deviation of variance across patients')
-title('Atlas edge variability across patients')
+
+%% do same regression in left and right
+for r = 1:45
+    
+    % loop through frequency bands and make the base structure 
+    intra_roi_conn(r).dist = [];
+    for f = 1
+        intra_roi_conn(r).freq(f).data = [];    
+        intra_roi_var(r).freq(f).data = [];  
+    end
+    
+    for s = 1:length(all_patients)
+        this_pt = s;
+        this_pt_roi = all_patients(this_pt).roi;
+        
+        % get right and left region numerical codes
+        left_region = find(this_pt_roi==all_inds(2*r));
+        right_region = find(this_pt_roi==all_inds(2*r-1));
+        
+        if length(left_region)>1
+
+            dist_matrix = triu(all_patients(this_pt).dist_mat);
+            this_roi_dist = dist_matrix(left_region,left_region);
+            dist_vec = this_roi_dist(:);
+            intra_roi_conn(r).dist = [intra_roi_conn(r).dist;dist_vec];
+            intra_roi_conn(r).dist(intra_roi_conn(r).dist==0) = [];
+
+            fprintf('more than 1 node on left\n')
+            for f = 1
+                triu_matrix = triu(all_patients(this_pt).conn(f).data);
+                triu_matrix_var = triu(all_patients(this_pt).var(f).data);
+
+                this_roi_var = triu_matrix_var(left_region,left_region);
+                this_roi_conn = triu_matrix(left_region,left_region);
+
+                roi_conn_vec = this_roi_conn(:);
+                roi_var_vec = this_roi_var(:);
+
+                intra_roi_conn(r).freq(f).data = [intra_roi_conn(r).freq(f).data;roi_conn_vec];
+                intra_roi_conn(r).freq(f).data(intra_roi_conn(r).freq(f).data==0) = [];
+                
+                intra_roi_var(r).freq(f).data = [intra_roi_var(r).freq(f).data;roi_var_vec];
+                intra_roi_var(r).freq(f).data(intra_roi_var(r).freq(f).data==0) = [];
+
+
+            end
+        end      
+
+        if length(right_region)>1
+            fprintf('more than 1 node on right\n')
+
+            dist_matrix = triu(all_patients(this_pt).dist_mat);
+            this_roi_dist = dist_matrix(right_region,right_region);
+            dist_vec = this_roi_dist(:);
+            intra_roi_conn(r).dist = [intra_roi_conn(r).dist;dist_vec];
+            intra_roi_conn(r).dist(intra_roi_conn(r).dist==0) = [];
+
+            for f = 1
+                triu_matrix = triu(all_patients(this_pt).conn(f).data);
+                triu_matrix_var = triu(all_patients(this_pt).var(f).data);
+
+                this_roi_var = triu_matrix_var(right_region,right_region);
+                this_roi_conn = triu_matrix(right_region,right_region);
+
+                roi_conn_vec = this_roi_conn(:);
+                roi_var_vec = this_roi_var(:);
+
+                intra_roi_conn(r).freq(f).data = [intra_roi_conn(r).freq(f).data;roi_conn_vec];
+                intra_roi_conn(r).freq(f).data(intra_roi_conn(r).freq(f).data==0) = [];
+                
+                intra_roi_var(r).freq(f).data = [intra_roi_var(r).freq(f).data;roi_var_vec];
+                intra_roi_var(r).freq(f).data(intra_roi_var(r).freq(f).data==0) = [];
+            end
+        end
+        
+    end
+end
+%%
+figure(1);clf;
+for f = 1
+    all_conn = [];
+    all_dist = [];
+    all_var = [];
+for r = [1:45]
+    if length(intra_roi_conn(r).freq(f).data)~=length(intra_roi_conn(r).dist)
+    else
+    all_conn = [all_conn;intra_roi_conn(r).freq(f).data];
+    all_var = [all_var;intra_roi_var(r).freq(f).data];
+    all_dist = [all_dist;intra_roi_conn(r).dist];
+    end
+end
+    mdl=fit(all_dist,all_conn,'rat11');
+    
+    xvals = linspace(min(all_dist+1),max(all_dist),100);
+    ypred = (mdl.p1.*xvals+mdl.p2)./(xvals+mdl.q1);
+    figure(1)
+    subplot(1,3,1)
+    hold on
+    plot(all_dist,all_conn,'ko')
+    plot(xvals,ypred,'r-','LineWidth',2)
+    xlabel('Internodal distance (mm)')
+    ylabel('Broadband cross-correlation')
+    legend('Atlas edge weights','non-linear polynomial regression')
+    title('Intra-regional internodal distance regression')
+    hold off
+    
+    intra_roi_curve(f).mdl = mdl;
+
+    subplot(1,3,2)
+    ypred = (mdl.p1.*all_dist+mdl.p2)./(all_dist+mdl.q1);
+    residuals = all_conn-ypred;
+    plot(all_dist,residuals,'ko')
+    xlabel('Internodal distance (mm)')
+    ylabel('Broadband cross-correlation')
+    title('Residual to best-fit polynomial')
+
+    num_bins = 20;
+    for j = 1:num_bins
+        upper_bound = (80/num_bins)*j;
+        lower_bound = (80/num_bins)*(j-1)+1;
+        which_inds = find([all_dist>lower_bound].*[all_dist<upper_bound]);
+        std_val(j) = std(abs(residuals(which_inds))) 
+
+    end
+    subplot(1,3,3)
+    plot([1:4:80],std_val,'ko')
+    hold on
+    xlabel('Internodal distance (mm)')
+    ylabel('Correlation variance')
+    title('Variance of Broadband cross-correlation residual')
+    std_mdl = fitlm([1:4:80],std_val)
+    plot([1,80],[0.127-[1,80].*0.001355],'r-','LineWidth',2)
+    
+end
 
 %% find z scores
 clear results_struct
@@ -222,15 +379,14 @@ for s = 1:length(all_patients)
     end
 end
 
-test_threshold = 7; % main results for = 7
-
 conn_type = 1; % mean/median
+test_band = 1;
 
 good_patient_indices = find(early_outcome==1);
 poor_patient_indices = find(early_outcome>1);
 
 for atlas_method = ["native"]
-    for test_band = 1
+    for test_threshold = 3
         % cross-validation of good-outcome patients
         for s = 1:length(good_patient_indices)
             test_patient = all_patients(good_patient_indices(s));
@@ -247,6 +403,8 @@ for atlas_method = ["native"]
             results_struct(good_patient_indices(s)).freq(test_band).all_scores = all_scores;
             results_struct(good_patient_indices(s)).freq(test_band).corr_val = corr_val;
             results_struct(good_patient_indices(s)).freq(test_band).virtual_resect = virtual_resect;
+            
+            corr_val_thresh(good_patient_indices(s),test_threshold) = corr_val;
             
             fprintf(repmat('\b',1,line_length))
 
@@ -268,6 +426,8 @@ for atlas_method = ["native"]
             results_struct(poor_patient_indices(s)).freq(test_band).virtual_resect = virtual_resect;
 
             fprintf(repmat('\b',1,line_length)  )
+            
+            corr_val_thresh(poor_patient_indices(s),test_threshold) = corr_val;
 
         end
         
@@ -325,9 +485,9 @@ for s = 1:length(all_patients)
     in_out_scores(resect_elecs,resect_elecs) = NaN;
     in_out_scores(non_res_elecs,non_res_elecs) = NaN;
     
-    in_in_all(s) = nanmean(in_in_scores(:));
-    in_out_all(s) = nanmean(in_out_scores(:));
-    out_out_all(s) = nanmean(out_out_scores(:));
+    in_in_all(s) = nanmedian(in_in_scores(:));
+    in_out_all(s) = nanmedian(in_out_scores(:));
+    out_out_all(s) = nanmedian(out_out_scores(:));
 end
 
 p1 = ranksum(out_out_all(stable_good),out_out_all(stable_poor));
@@ -400,8 +560,6 @@ plot([1,5], [11,11], '-k', 'LineWidth',1)
 plot(3.5, 11.5, 'kd')
 plot([3,5], [8,8], '-k', 'LineWidth',1)
 plot(4, 8.5, 'kd')
-plot([2,6], [9.5,9.5], '-k', 'LineWidth',1)
-plot(4, 10, 'k*')
 
 hold off
 
@@ -465,15 +623,15 @@ features = [all_epilepsy_duration];
 
 f2 = fitlm(features, in_in_all','RobustOpts','on')
 p2 = f2.Coefficients{2,4};
-b2 = f2.Coefficients{1,1}; m2a = f2.Coefficients{2,1}; %m2b = f2.Coefficients{3,3};
+b2 = f2.Coefficients{1,1}; m2a = f2.Coefficients{2,1}; %m2b = f2.Coefficients{3,1};
 
-f3 = fitlm(features, in_out_all','RobustOpts','on');
+f3 = fitlm(features, in_out_all','RobustOpts','on')
 p3 = f3.Coefficients{2,4};
-b3 = f3.Coefficients{1,1}; m3a = f3.Coefficients{2,1}; %m3b = f3.Coefficients{3,3};
+b3 = f3.Coefficients{1,1}; m3a = f3.Coefficients{2,1}; %m3b = f3.Coefficients{3,1};
 
 f4 = fitlm(features, out_out_all','RobustOpts','on')
 p4 = f4.Coefficients{2,4};
-b4 = f4.Coefficients{1,1}; m4a = f4.Coefficients{2,1}; %m4b = f4.Coefficients{3,3};
+b4 = f4.Coefficients{1,1}; m4a = f4.Coefficients{2,1}; %m4b = f4.Coefficients{3,1};
 
 x1 = [min(all_epilepsy_duration), max(all_epilepsy_duration)];
 
@@ -483,9 +641,9 @@ red = [0.6350, 0.0780, 0.1840];
 purple = [103 55 155]/255;
 
 figure(1);clf;
-subplot(1,2,1)
+subplot(1,3,1)
 hold on
-plot(all_epilepsy_duration,in_in_all,'Color',red,'Marker','.','LineStyle','none','MarkerSize',24)
+plot(all_epilepsy_duration,[in_in_all],'Color',red,'Marker','.','LineStyle','none','MarkerSize',24)
 plot(x1,[m2a.*x1+b2],'k-','LineWidth',2)
 txt2 = sprintf('p = %d',p2)
 %t2 = text(40,1.5,txt2)
@@ -493,19 +651,19 @@ title(sprintf('Resected edges, p = %2f',p2))
 xlabel('Duration between first seizure and implant (years)')
 ylabel('Mean atlas Z score')
 hold off
-% subplot(1,3,2)
-% hold on
-% plot(all_epilepsy_duration,in_out_all,'Color',purple,'Marker','.','LineStyle','none','MarkerSize',24)
-% plot(x1,[m3a.*x1+b3],'k-','LineWidth',2)
-% txt3 = sprintf('p = %d',p3)
-% %t3 = text(40,1.5,txt3)
-% title(sprintf('Non-resected edges, p = %2f',p3))
-% xlabel('Duration between first seizure and surgery (years)')
-% ylabel('Mean atlas Z score')
-% hold off
-subplot(1,2,2)
+subplot(1,3,2)
 hold on
-plot(all_epilepsy_duration,out_out_all,'Color',blue,'Marker','.','LineStyle','none','MarkerSize',24)
+plot(all_epilepsy_duration,[in_out_all],'Color',purple,'Marker','.','LineStyle','none','MarkerSize',24)
+plot(x1,[m3a.*x1+b3],'k-','LineWidth',2)
+txt3 = sprintf('p = %d',p3)
+%t3 = text(40,1.5,txt3)
+title(sprintf('Non-resected edges, p = %2f',p3))
+xlabel('Duration between first seizure and surgery (years)')
+ylabel('Mean atlas Z score')
+hold off
+subplot(1,3,3)
+hold on
+plot(all_epilepsy_duration,[out_out_all],'Color',blue,'Marker','.','LineStyle','none','MarkerSize',24)
 plot(x1,[m4a.*x1+b4],'k-','LineWidth',2)
 txt4 = sprintf('p = %d',p4)
 %t4 = text(40,1.5,txt4)
@@ -519,78 +677,6 @@ blue = [0, 0.4470, 0.7410];
 red = [0.6350, 0.0780, 0.1840];
 purple = [103 55 155]/255;
 
-%% example patient analysis
-% -> find one where mapping agrees & good outcome
-
-% set patient
-test_band = 1;
-which_pt = 33; % HUP144
-secondary_inds = region_list([12, 18, 30, 32, 34]); % R frontal
-tertiary_inds = region_list([58:2:70]); % R parietal
-
-% define first region electrodes
-resect_elecs = all_patients(which_pt).resect;
-
-% define second region electrodes
-elecs_2 = find(sum(all_patients(which_pt).roi==secondary_inds')>0)';
-elecs_3 = find(sum(all_patients(which_pt).roi==tertiary_inds')>0)';
-which_roi = all_patients(which_pt).roi(elecs_2);
-
-% get in-in res and in-in 2
-pt_scores = results_struct(which_pt).freq(test_band).all_scores;
-abn_matrix = pt_scores;
-in_in_res = pt_scores(resect_elecs,resect_elecs);
-in_in_2 = pt_scores(elecs_2,elecs_2);
-in_in_3 = pt_scores(elecs_3,elecs_3);
-
-all_potential_elecs = [resect_elecs; elecs_2];
-pt_scores(all_potential_elecs,:) = NaN;
-pt_scores(:,all_potential_elecs) = NaN;
-out_out_scores = pt_scores;
-
-figure(1);clf
-hold on
-scatter(ones(length(in_in_res(:)),1),in_in_res(:),'MarkerEdgeColor',[0.8500, 0.3250, 0.0980],'MarkerFaceColor',[0.8500, 0.3250, 0.0980],'jitter','on')
-plot([0.75 1.25],[nanmedian(in_in_res(:)),nanmedian(in_in_res(:))],'k-','LineWidth',2)
-scatter(2*ones(length(in_in_2(:)),1),in_in_2(:),'MarkerEdgeColor',[0.9290, 0.6940, 0.1250],'MarkerFaceColor',[0.9290, 0.6940, 0.1250],'jitter','on')
-plot([1.75 2.25],[nanmedian(in_in_2(:)),nanmedian(in_in_2(:))],'k-','LineWidth',2)
-scatter(3*ones(length(in_in_3(:)),1),in_in_3(:),'MarkerEdgeColor',[0, 0.4470, 0.7410],'MarkerFaceColor',[0, 0.4470, 0.7410],'jitter','on')
-plot([2.75 3.25],[nanmedian(in_in_3(:)),nanmedian(in_in_3(:))],'k-','LineWidth',2)
-xlim([0.5 3.5])
-ylim([-5 10])
-xticks([1:3])
-xticklabels({'target','secondary','tertiary'})
-hold off
-
-p1 = ranksum(in_in_res(:),in_in_2(:))
-p2 = ranksum(in_in_res(:),in_in_3(:))
-
-% get the abnormality matrix
-figure(2);clf
-hold on
-imagesc(abn_matrix,'AlphaData',~isnan(abn_matrix))
-caxis([-5 10])
-colorbar
-hold off
-
-% now do the rendering w/ brain net viewer
-
-% get coordinates
-all_coords = all_patients(which_pt).coords;
-all_coords(:,3) = all_coords(:,3);
-
-% set up .edge file
-abn_matrix(isnan(abn_matrix)) = 0;
-save('output/hypothesis_test.edge','abn_matrix','-ascii');
-
-% set up .node file
-final_elec_matrix = [all_coords, 4*ones(size(all_coords,1),1), ones(size(all_coords,1),1)];  
-final_elec_matrix(resect_elecs,4) = 1;
-final_elec_matrix(elecs_2,4) = 2;
-final_elec_matrix(elecs_3,4) = 3; 
-dlmwrite('output/hypothesis_test.node',final_elec_matrix,'delimiter',' ','precision',5)
-BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/hypothesis_test.node','output/hypothesis_test.edge','output/fig_3_option.mat','output/hypothesis_test_HUP144.jpg')
-
 %% second example patient analysis
 % -> find one where mapping agrees & good outcome
 
@@ -599,9 +685,9 @@ BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/hypothesis_test.node','o
 
 % set patient
 test_band = 1;
-which_pt = 26; % HUP133
-secondary_inds = [4001,5201,5301];
-tertiary_inds = [4112 4102]; % R parietal
+which_pt = 31; % HUP133
+secondary_inds = region_list([81:89])
+tertiary_inds = region_list([47,55])
 
 % define first region electrodes
 resect_elecs = all_patients(which_pt).resect;
@@ -609,6 +695,7 @@ resect_elecs = all_patients(which_pt).resect;
 % define second region electrodes
 elecs_2 = find(sum(all_patients(which_pt).roi==secondary_inds')>0)';
 elecs_3 = find(sum(all_patients(which_pt).roi==tertiary_inds')>0)';
+elecs_3 = setdiff(elecs_3,resect_elecs);
 which_roi = all_patients(which_pt).roi(elecs_2);
 
 % get in-in res and in-in 2
@@ -618,10 +705,6 @@ in_in_res = pt_scores(resect_elecs,resect_elecs);
 in_in_2 = pt_scores(elecs_2,elecs_2);
 in_in_3 = pt_scores(elecs_3,elecs_3);
 
-all_potential_elecs = [resect_elecs; elecs_2];
-pt_scores(all_potential_elecs,:) = NaN;
-pt_scores(:,all_potential_elecs) = NaN;
-out_out_scores = pt_scores;
 
 figure(1);clf
 hold on
@@ -632,13 +715,13 @@ plot([1.75 2.25],[nanmedian(in_in_2(:)),nanmedian(in_in_2(:))],'k-','LineWidth',
 scatter(3*ones(length(in_in_3(:)),1),in_in_3(:),'MarkerEdgeColor',[0, 0.4470, 0.7410],'MarkerFaceColor',[0, 0.4470, 0.7410],'jitter','on')
 plot([2.75 3.25],[nanmedian(in_in_3(:)),nanmedian(in_in_3(:))],'k-','LineWidth',2)
 xlim([0.5 3.5])
-ylim([-5 10])
 xticks([1:3])
 xticklabels({'target','secondary','tertiary'})
 hold off
 
 p1 = ranksum(in_in_res(:),in_in_2(:))
 p2 = ranksum(in_in_res(:),in_in_3(:))
+p3 = ranksum(in_in_2(:),in_in_3(:))
 
 % get the abnormality matrix
 figure(2);clf
@@ -663,6 +746,7 @@ final_elec_matrix = [all_coords, 4*ones(size(all_coords,1),1), ones(size(all_coo
 final_elec_matrix(resect_elecs,4) = 1;
 final_elec_matrix(elecs_2,4) = 2;
 final_elec_matrix(elecs_3,4) = 3; 
+figure(3);clf;
 dlmwrite('output/hypothesis_test.node',final_elec_matrix,'delimiter',' ','precision',5)
 BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/hypothesis_test.node','output/hypothesis_test.edge','output/fig_3_option.mat','output/hypothesis_test_HUP133.jpg')
 
@@ -741,6 +825,77 @@ final_elec_matrix(elecs_3,4) = 3;
 dlmwrite('output/hypothesis_test.node',final_elec_matrix,'delimiter',' ','precision',5)
 BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/hypothesis_test.node','output/hypothesis_test.edge','output/fig_3_option.mat','output/hypothesis_test_HUP177.jpg')
 
+%% example patient analysis
+% -> find one where mapping agrees & good outcome
+
+% set patient
+test_band = 1;
+which_pt = 39; % HUP148
+secondary_inds = region_list([37,39,41]); % L MTL
+tertiary_inds = region_list([81:2:90]); % L temp neocortical
+
+% define first region electrodes
+resect_elecs = all_patients(which_pt).resect;
+
+% define second region electrodes
+elecs_2 = find(sum(all_patients(which_pt).roi==secondary_inds')>0)';
+elecs_3 = find(sum(all_patients(which_pt).roi==tertiary_inds')>0)';
+which_roi = all_patients(which_pt).roi(elecs_2);
+
+% get in-in res and in-in 2
+pt_scores = results_struct(which_pt).freq(test_band).all_scores;
+abn_matrix = pt_scores;
+in_in_res = pt_scores(resect_elecs,resect_elecs);
+in_in_2 = pt_scores(elecs_2,elecs_2);
+in_in_3 = pt_scores(elecs_3,elecs_3);
+
+all_potential_elecs = [resect_elecs; elecs_2];
+pt_scores(all_potential_elecs,:) = NaN;
+pt_scores(:,all_potential_elecs) = NaN;
+out_out_scores = pt_scores;
+
+figure(1);clf
+hold on
+scatter(ones(length(in_in_res(:)),1),in_in_res(:),'MarkerEdgeColor',[0.8500, 0.3250, 0.0980],'MarkerFaceColor',[0.8500, 0.3250, 0.0980],'jitter','on')
+plot([0.75 1.25],[nanmedian(in_in_res(:)),nanmedian(in_in_res(:))],'k-','LineWidth',2)
+scatter(2*ones(length(in_in_2(:)),1),in_in_2(:),'MarkerEdgeColor',[0.9290, 0.6940, 0.1250],'MarkerFaceColor',[0.9290, 0.6940, 0.1250],'jitter','on')
+plot([1.75 2.25],[nanmedian(in_in_2(:)),nanmedian(in_in_2(:))],'k-','LineWidth',2)
+scatter(3*ones(length(in_in_3(:)),1),in_in_3(:),'MarkerEdgeColor',[0, 0.4470, 0.7410],'MarkerFaceColor',[0, 0.4470, 0.7410],'jitter','on')
+plot([2.75 3.25],[nanmedian(in_in_3(:)),nanmedian(in_in_3(:))],'k-','LineWidth',2)
+xlim([0.5 3.5])
+ylim([-5 10])
+xticks([1:3])
+xticklabels({'target','secondary','tertiary'})
+hold off
+
+p1 = ranksum(in_in_res(:),in_in_2(:))
+p2 = ranksum(in_in_res(:),in_in_3(:))
+
+% get the abnormality matrix
+figure(2);clf
+hold on
+imagesc(abn_matrix,'AlphaData',~isnan(abn_matrix))
+caxis([-5 10])
+colorbar
+hold off
+
+% now do the rendering w/ brain net viewer
+
+% get coordinates
+all_coords = all_patients(which_pt).coords;
+all_coords(:,3) = all_coords(:,3);
+
+% set up .edge file
+abn_matrix(isnan(abn_matrix)) = 0;
+save('output/hypothesis_test.edge','abn_matrix','-ascii');
+
+% set up .node file
+final_elec_matrix = [all_coords, 4*ones(size(all_coords,1),1), ones(size(all_coords,1),1)];  
+final_elec_matrix(resect_elecs,4) = 1;
+final_elec_matrix(elecs_2,4) = 2;
+final_elec_matrix(elecs_3,4) = 3; 
+dlmwrite('output/hypothesis_test.node',final_elec_matrix,'delimiter',' ','precision',5)
+BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','output/hypothesis_test.node','output/hypothesis_test.edge','output/fig_3_option.mat','output/hypothesis_test_HUP144.jpg')
 
 
 

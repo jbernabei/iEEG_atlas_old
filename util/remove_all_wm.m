@@ -10,7 +10,7 @@ for s = 1:length(data_patient_indices)
     resect_bool = zeros(num_elecs,1);
     resect_bool(patient_data.resect) = 1;
     
-    wm_elecs = [find(patient_data.roi==9171),find(patient_data.roi==0)]; % get which electrodes are in WM
+    wm_elecs = [find(patient_data.roi==9171),find(patient_data.roi==0),find(patient_data.in_brain==0)']; % get which electrodes are in WM
     resect_bool(wm_elecs) = [];
     
     final_res_elecs = find(resect_bool);
